@@ -1,0 +1,2184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intérprete en vivo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F151C" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Intérprete">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#16202A; --muted:#5B6874; --line:#D6DCE2;
+  --tally:#CF2F27; --tally-soft:rgba(207,47,39,.13); --ok:#16704C; --warn:#9A5B00;
+  --fs:1.45rem;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F151C; --surface:#17202A; --ink:#E4EAF0; --muted:#8E9BA7; --line:#26313D;
+    --tally:#FF5C50; --tally-soft:rgba(255,92,80,.18); --ok:#4CC28E; --warn:#E6A547;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:"Atkinson Hyperlegible Next","Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--tally);outline-offset:2px}
+
+/* Header */
+.top{display:flex;align-items:center;gap:8px;padding:6px 16px 2px}
+.titles{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.titles .chips{flex:0 1 auto}
+.titles h1{margin:0;flex:none;font-size:1.05rem;font-weight:700;letter-spacing:-.01em}
+.topic{flex:1;min-width:0;color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .pill{padding:3px 12px;font-size:.82rem}
+.pill{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:700;font-size:.95rem}
+.pill:hover{border-color:var(--muted)}
+.pill.small{padding:6px 12px;font-size:.85rem}
+.pill.dim{color:var(--muted)}
+
+/* Voices + source */
+.voices{display:flex;align-items:center;gap:6px 10px;padding:3px 16px 4px;flex-wrap:wrap}
+.voices .hint{color:var(--muted);font-size:.74rem;line-height:1.25;width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 11px;text-align:left;line-height:1.3}
+.chip b{display:inline;font-size:.86rem}
+.chip span{display:inline;margin-left:6px;font-size:.72rem;color:var(--muted)}
+.chip.on{background:var(--tally);border-color:var(--tally);color:#fff}
+.chip.on span{color:#fff}
+.chip.add{border-style:dashed;font-weight:700;font-size:.86rem}
+.reply{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:var(--muted);white-space:nowrap}
+.reply select{padding:2px 8px;font-size:.8rem;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:auto}
+.source{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:2px}
+.source button{border:0;background:transparent;border-radius:999px;padding:3px 10px;font-weight:700;font-size:.8rem;color:var(--muted)}
+.source button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+
+.banner{margin:0 22px 8px;padding:10px 14px;border-radius:12px;background:var(--tally-soft);font-size:.95rem;line-height:1.45;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.banner[hidden]{display:none}
+.banner button{border:0;background:transparent;font-weight:700;color:var(--muted)}
+
+/* Split view */
+/* Windows: resizable, minimizable */
+.work{flex:1;min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.work[hidden]{display:none}
+.panes{flex:1;min-height:0;display:flex;flex-direction:row}
+.panes.col{flex-direction:column}
+.pane{display:flex;flex-direction:column;min-height:0;min-width:0;flex:1 1 0;overflow:hidden;container-type:inline-size}
+.pane.b,.pane.c{background:var(--surface)}
+.pane[hidden]{display:none}
+.allmin{padding:18px 22px;margin:0}
+.grow{flex:1}
+.split{flex:none;width:12px;cursor:col-resize;touch-action:none;display:grid;place-items:center;background:var(--line)}
+.split::after{content:"";width:4px;height:40px;border-radius:2px;background:var(--muted);opacity:.6}
+.split:hover,.split.drag,.split:focus-visible{background:var(--tally-soft)}
+.panes.col .split{width:auto;height:12px;cursor:row-resize}
+.panes.col .split::after{width:40px;height:4px}
+.winbtn{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:8px;width:32px;height:28px;font-weight:700;line-height:1}
+.winbtn:hover{border-color:var(--muted)}
+.pane-head .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@container (max-width: 380px){ .pane-head .sub{display:none} }
+@container (max-width: 560px){ .pane.b .pane-head .sub{display:none} }
+.panes.col{overflow-y:auto}
+.panes.col .pane{min-height:150px}
+.dock{display:flex;align-items:center;gap:8px;padding:6px 22px;border-top:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
+.dockchips{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Written translation window */
+.tw{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:8px 22px 18px;overflow:auto}
+.tw-cols{flex:1;min-height:220px;display:flex;gap:10px}
+.tw-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.tw-col select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:8px 10px}
+.tw-swap{flex:none;align-self:flex-start;margin-top:2px}
+.tw textarea{width:100%;flex:1 1 0;min-height:100px;resize:none;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:10px 12px;font-size:1.1rem;line-height:1.4}
+.tw-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:30px}
+.tw-state{color:var(--muted);font-size:.85rem}
+.pill.rec{background:#c62828;border-color:#c62828;color:#fff}
+.tw-out{flex:1 1 0;min-height:100px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--fs);line-height:1.34;font-weight:500;border-radius:12px;background:var(--bg);padding:10px 14px}
+.tw-out:empty::before{content:"La traducción aparecerá aquí";color:var(--muted);font-weight:400;font-size:1rem}
+@container (max-width: 300px){ .tw-cols{flex-direction:column} .tw-swap{align-self:center} }
+.pane-head{display:flex;align-items:center;gap:10px;padding:10px 22px 4px;min-height:48px}
+.pane-head h2{margin:0;font-size:1rem}
+.pane-head .sub{color:var(--muted);font-size:.85rem;flex:1}
+.pane-head .lat{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.feed{flex:1;overflow-y:auto;padding:8px 22px 28px;overscroll-behavior:contain}
+.empty{color:var(--muted);font-size:1.05rem;line-height:1.5;max-width:46ch;margin-top:12px}
+.seg{display:flex;gap:12px;margin-bottom:18px}
+.seg .bar{width:3px;border-radius:2px;flex:none;background:transparent}
+.seg.live .bar{background:var(--tally)}
+.seg .col{min-width:0;flex:1}
+.meta{font-size:.82rem;font-weight:700;color:var(--muted);border:0;background:none;padding:0;text-align:left}
+.meta:hover{color:var(--ink);text-decoration:underline}
+.tr{font-size:var(--fs);line-height:1.34;font-weight:500;margin:2px 0 0;overflow-wrap:anywhere;max-width:62ch}
+.src{font-size:.95rem;line-height:1.45;color:var(--muted);margin:4px 0 0;max-width:70ch;overflow-wrap:anywhere}
+.tail,.wait{color:var(--muted)}
+.fallback{color:var(--muted);font-style:italic}
+
+/* Audio-only booth view */
+.cabin{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 10vw;border-top:1px solid var(--line)}
+.cabin[hidden]{display:none}
+.cabin .who{color:var(--muted);font-weight:700;font-size:1.1rem}
+.cabin .line{font-size:2.1rem;line-height:1.25;margin:14px 0 22px;max-width:40ch}
+.cabin .keys{color:var(--muted);font-size:.95rem;line-height:1.5;max-width:60ch}
+
+/* Bottom bar */
+.bar-bottom{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:6px 16px;background:var(--surface);border-top:1px solid var(--line)}
+.bar-bottom .source button{padding:3px 10px;font-size:.8rem}
+.bar-bottom .pill.small{padding:3px 10px;font-size:.8rem}
+.mic{width:40px;height:40px;border-radius:50%;border:0;background:var(--ink);color:var(--surface);display:grid;place-items:center;flex:none}
+.mic svg{width:18px;height:18px}
+.mic[aria-pressed="true"]{background:var(--tally);color:#fff;animation:tally 2s ease-in-out infinite}
+@keyframes tally{0%,100%{box-shadow:0 0 0 0 var(--tally-soft)}50%{box-shadow:0 0 0 11px var(--tally-soft)}}
+.readout{flex:1;min-width:140px}
+.outlabel{color:var(--muted);font-size:.8rem;font-weight:700}
+.now{display:block;margin:0 22px 8px;padding:8px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:1rem;line-height:1.4;text-align:left;width:calc(100% - 44px)}
+.now[hidden]{display:none}
+.now b{color:var(--tally)}
+.level{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:.82rem;color:var(--muted)}
+.level[hidden]{display:none}
+.meter{width:70px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
+.meter i{display:block;height:100%;width:0;background:var(--ok);border-radius:3px;transition:width .15s}
+.pill.recap{border:2px solid var(--tally)}
+.notes{white-space:pre-wrap;line-height:1.5}
+.status{font-weight:700;font-size:.9rem}
+.route{color:var(--muted);font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Dialogs */
+dialog{border:0;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);width:min(640px,94vw);max-height:88vh}
+dialog::backdrop{background:rgba(10,15,20,.5)}
+.dlg{padding:22px 24px;display:flex;flex-direction:column;gap:10px;max-height:88vh;overflow:auto}
+.dlg h3{margin:0 0 4px;font-size:1.25rem}
+.dlg h4{margin:14px 0 0;font-size:1rem}
+.dlg label.row{display:flex;gap:10px;align-items:flex-start;line-height:1.4}
+.dlg label.row input{margin-top:3px;accent-color:var(--tally);width:18px;height:18px;flex:none}
+.dlg input[type=text],.dlg input[type=password],.dlg select,.dlg textarea{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:9px 12px}
+.dlg textarea{min-height:84px;resize:vertical}
+.help{color:var(--muted);font-size:.88rem;line-height:1.45;margin:0}
+.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:9px 18px;font-weight:700}
+.btn.primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.danger{color:var(--tally)}
+.list{display:flex;flex-direction:column;gap:6px}
+.list button{text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 14px}
+.answer{white-space:pre-wrap;line-height:1.5;background:var(--bg);border-radius:10px;padding:12px 14px;max-height:50vh;overflow:auto}
+.radios{display:flex;flex-direction:column;gap:6px}
+.radios.inline{flex-direction:row;flex-wrap:wrap;gap:14px}
+
+
+@media (prefers-reduced-motion: reduce){ .mic[aria-pressed="true"]{animation:none} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="titles">
+    <h1>Intérprete</h1>
+    <div class="chips" id="chips"></div>
+    <div class="topic" id="topic"></div>
+  </div>
+  <button class="pill" id="btnSession">Sesión</button>
+  <button class="pill" id="btnSettings">Ajustes</button>
+  <button class="pill" id="btnMore">Más</button>
+</header>
+
+<section class="voices">
+  <div class="source" role="group" aria-label="Qué escuchar">
+    <button data-src="mic">Micrófono</button>
+    <button data-src="system">Audio del PC</button>
+    <button data-src="both">Ambos</button>
+  </div>
+  <label class="reply" title="Idioma al que se traduce lo que digo yo">Respondo en <select id="replySel" aria-label="Idioma al que se traduce lo que digo yo"></select></label>
+  <div class="hint" id="chipsHint"></div>
+</section>
+
+<button class="now" id="nowBar" hidden title="Ver apuntes y avisos (tecla A)"></button>
+<div class="banner" id="banner" role="status" hidden><span id="bannerText"></span><span><button class="pill small" id="bannerAction" hidden></button> <button id="bannerClose" aria-label="Cerrar aviso">✕</button></span></div>
+
+<main class="work" id="work">
+  <div class="panes" id="panes">
+    <p class="empty allmin" id="allMin" hidden>Todas las ventanas están minimizadas. Ábrelas desde la barra de abajo.</p>
+    <section class="pane a" id="paneA">
+      <div class="pane-head"><h2>Simultánea</h2><span class="sub">al instante, en el PC</span><span class="lat" id="latA"></span><button class="winbtn" data-pop="A" title="Abrir en otra ventana (por ejemplo, en otro monitor)" aria-label="Abrir la ventana Simultánea aparte">↗</button><button class="winbtn" data-min="A" title="Minimizar" aria-label="Minimizar la ventana Simultánea">–</button></div>
+      <div class="feed" id="feedA"><p class="empty" id="emptyA">Elige qué escuchar arriba a la derecha y pulsa el micrófono. Aquí verás la traducción mientras la persona habla.</p></div>
+    </section>
+    <section class="pane b" id="paneB">
+      <div class="pane-head"><h2>Mejorada</h2><span class="sub">revisada por Claude</span><span class="lat" id="latB"></span><button class="pill small" id="btnClaude"></button><button class="winbtn" data-pop="B" title="Abrir en otra ventana (por ejemplo, en otro monitor)" aria-label="Abrir la ventana Mejorada aparte">↗</button><button class="winbtn" data-min="B" title="Minimizar" aria-label="Minimizar la ventana Mejorada">–</button></div>
+      <div class="feed" id="feedB"><p class="empty" id="emptyB"></p></div>
+    </section>
+    <section class="pane c" id="paneC" hidden>
+      <div class="pane-head"><h2>Escribir y traducir</h2><span class="sub">escribe en un idioma y léelo en otro</span><button class="winbtn" data-pop="C" title="Abrir la traducción en otra ventana, en grande (por ejemplo, en otro monitor)" aria-label="Abrir la traducción escrita aparte">↗</button><button class="winbtn" data-min="C" title="Minimizar" aria-label="Minimizar la ventana Escribir y traducir">–</button></div>
+      <div class="tw">
+        <div class="tw-cols">
+          <div class="tw-col">
+            <select id="twFrom" aria-label="Idioma en el que escribes"></select>
+            <textarea id="twIn" rows="4" placeholder="Escribe aquí lo que quieras traducir. Ctrl+Intro traduce al momento."></textarea>
+            <div class="tw-bar"><button class="pill small" id="twDict" title="Dictar con la voz, en el idioma de este cuadro">Dictar</button><span class="grow"></span><button class="pill small dim" id="twClear">Borrar</button></div>
+          </div>
+          <button class="pill small tw-swap" id="twSwap" title="Intercambiar idiomas (la traducción pasa a ser el texto)" aria-label="Intercambiar idiomas">⇄</button>
+          <div class="tw-col">
+            <select id="twTo" aria-label="Idioma al que se traduce"></select>
+            <div class="tw-out" id="twOut" aria-live="polite"></div>
+            <div class="tw-bar"><span class="tw-state" id="twState"></span><span class="grow"></span><button class="pill small" id="twSpeak">Escuchar</button><button class="pill small" id="twCopy">Copiar</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="dock" id="dock">
+    <div class="dockchips" id="dockChips"></div>
+    <span class="grow"></span>
+    <button class="pill small" id="btnDir"></button>
+  </div>
+</main>
+
+<section class="cabin" id="cabin" hidden>
+  <div class="who" id="cabinWho"></div>
+  <div class="line" id="cabinLine">Pulsa el micrófono para empezar.</div>
+  <div class="keys">Atajos: F2 empieza o detiene · Q «¿Qué ha dicho?» · A apuntes · R repite la última frase · 1 a 9 eligen quién habla.</div>
+</section>
+
+<footer class="bar-bottom">
+  <button class="mic" id="mic" aria-pressed="false" aria-label="Empezar a interpretar (F2)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+  </button>
+  <div class="readout">
+    <div class="status" id="status">Pulsa el micrófono</div>
+    <div class="route" id="route"></div>
+    <div class="level" id="levelRow" hidden><span class="meter"><i id="levelFill"></i></span><span id="levelText"></span></div>
+  </div>
+  <button class="pill small recap" id="btnRecap" title="Tecla Q">¿Qué ha dicho?</button>
+  <button class="pill small dim" id="btnResetWin" title="Dar el mismo tamaño a todas las ventanas abiertas">Igualar tamaños</button>
+  <span class="outlabel" id="outLabel">Salida</span>
+  <div class="source" role="group" aria-labelledby="outLabel">
+    <button data-out="0">Texto</button>
+    <button data-out="1">Audio</button>
+    <button data-out="2">Texto y audio</button>
+  </div>
+  <button class="pill small" id="btnRepeat">Repetir</button>
+</footer>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+"use strict";
+/* =====================================================================
+   Storage
+   ===================================================================== */
+const PREFIX = "interp3:";
+function load(k, d){ try{ const v = localStorage.getItem(PREFIX + k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } }
+function keep(k, v){ try{ localStorage.setItem(PREFIX + k, JSON.stringify(v)); }catch(e){} }
+const cfg = {
+  deepgramKey: load("deepgramKey", ""), useDeepgram: load("useDeepgram", true), diarize: load("diarize", true),
+  claudeKey: load("claudeKey", ""), useClaude: load("useClaude", true),
+  spanishOut: load("spanishOut", "es-ES"), outputMode: load("outputMode", 0), layoutMode: load("layoutMode", 0),
+  voiceSource: load("voiceSource", "fast"), rate: load("rate", 1.1), voiceMap: load("voiceMap", { es: load("voiceEs", ""), en: load("voiceEn", "") }),
+  speakMine: load("speakMine", false), headphones: load("headphones", true), textSize: load("textSize", 1),
+  source: load("source", "mic"), topic: load("topic", ""), docName: load("docName", ""), docBrief: load("docBrief", ""),
+  userGlossary: load("userGlossary", ""), keepTerms: load("keepTerms", ""), selectedId: load("selectedId", ""),
+  participants: load("participants", null), profiles: load("profiles", []), classMode: load("classMode", false),
+  win: load("win", null), twFrom: load("twFrom", "es"), twTo: load("twTo", ""), expertQuality: load("expertQuality", "fast"),
+  replyLang: load("replyLang", "auto"), micId: load("micId", ""), keepAwake: load("keepAwake", true), exportCols: load("exportCols", true)
+};
+function setCfg(k, v){ cfg[k] = v; keep(k, v); }
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+if (!Array.isArray(cfg.participants) || !cfg.participants.length){
+  setCfg("participants", [
+    { id: uid(), name: "Ponente", lang: "en", locale: "en-US", notes: "", isMe: false },
+    { id: uid(), name: "Yo", lang: "es", locale: "es-ES", notes: "", isMe: true }
+  ]);
+}
+
+/* =====================================================================
+   Accents and participants
+   ===================================================================== */
+const LANGS = {
+  en: { name: "inglés", english: "English", test: "Hello, this is how the English translation will sound.",
+    accents: [["en-US","Estados Unidos"],["en-GB","Reino Unido"],["en-IE","Irlanda"],["en-AU","Australia"],["en-NZ","Nueva Zelanda"],["en-CA","Canadá"],["en-IN","India"],["en-ZA","Sudáfrica"],["en-NG","Nigeria"],["en-KE","Kenia"],["en-PH","Filipinas"],["en-SG","Singapur"]] },
+  es: { name: "español", english: "Spanish", test: "Hola, así sonará la traducción al español.",
+    accents: [["es-ES","España"],["es-MX","México"],["es-US","Estados Unidos"],["es-AR","Argentina"],["es-CO","Colombia"],["es-CL","Chile"],["es-PE","Perú"],["es-VE","Venezuela"],["es-EC","Ecuador"],["es-UY","Uruguay"],["es-CR","Costa Rica"],["es-DO","República Dominicana"]] },
+
+  de: { name: "alemán", english: "German", test: "Hallo, so klingt die Übersetzung ins Deutsche.",
+    accents: [["de-DE","Alemania"],["de-AT","Austria"],["de-CH","Suiza"]] },
+  pt: { name: "portugués", english: "Portuguese", test: "Olá, é assim que a tradução em português vai soar.",
+    accents: [["pt-PT","Portugal"],["pt-BR","Brasil"]] },
+  fr: { name: "francés", english: "French", test: "Bonjour, voici comment sonnera la traduction en français.",
+    accents: [["fr-FR","Francia"],["fr-CA","Canadá"],["fr-BE","Bélgica"],["fr-CH","Suiza"]] },
+  it: { name: "italiano", english: "Italian", test: "Ciao, ecco come suonerà la traduzione in italiano.",
+    accents: [["it-IT","Italia"],["it-CH","Suiza"]] }
+};
+const ACCENTS = Object.fromEntries(Object.entries(LANGS).map(([k, v]) => [k, v.accents]));
+function accentLabel(loc){ for (const l in ACCENTS) for (const [c, n] of ACCENTS[l]) if (c === loc) return n; return loc; }
+const langName = l => (LANGS[l] || LANGS.en).name;
+function describe(p){
+  const base = `${p.name}: speaks ${(LANGS[p.lang] || LANGS.en).english}, accent/variety: ${accentLabel(p.locale)} (${p.locale})`;
+  return p.notes ? `${base}. Notes on how they speak: ${p.notes}` : base;
+}
+function selected(){ return cfg.participants.find(p => p.id === cfg.selectedId) || cfg.participants[0]; }
+/** Saved people or profiles in a language that no longer exists (Chinese was removed) become English speakers. */
+function sanitizeParticipants(list){
+  let changed = false;
+  for (const p of list || []) if (p && !LANGS[p.lang]){ p.lang = "en"; p.locale = "en-US"; changed = true; }
+  return changed;
+}
+if (sanitizeParticipants(cfg.participants)) setCfg("participants", cfg.participants);
+if (Array.isArray(cfg.profiles) && cfg.profiles.map(pr => sanitizeParticipants(pr && pr.participants)).some(Boolean)) setCfg("profiles", cfg.profiles);
+
+/* Language helpers: who I answer to, voices, Deepgram language */
+const LANG_KEYS = Object.keys(LANGS);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const spanishLocale = () => cfg.spanishOut === "es-ES" ? "es-ES" : "es-US";
+function partnerLocale(lang){
+  const p = cfg.participants.find(x => x.lang === lang && !x.isMe) || cfg.participants.find(x => x.lang === lang);
+  return p ? p.locale : LANGS[lang].accents[0][0];
+}
+const localeFor = lang => lang === "es" ? spanishLocale() : partnerLocale(lang);
+let lastPartnerLang = null;
+/** Automatic choice: the language of the last person who spoke (or whose name I clicked). */
+function autoPartnerLang(){
+  const langs = cfg.participants.filter(p => p.lang !== "es").map(p => p.lang);
+  return lastPartnerLang && langs.includes(lastPartnerLang) ? lastPartnerLang : (langs[0] || "en");
+}
+/** Language my Spanish is translated into: the one I chose in "Respondo en", or the automatic one. */
+function partnerLang(){
+  return cfg.replyLang !== "auto" && cfg.replyLang !== "es" && LANGS[cfg.replyLang] ? cfg.replyLang : autoPartnerLang();
+}
+function renderReply(){
+  const sel = $("replySel"); if (!sel) return;
+  const auto = autoPartnerLang(), cur = LANGS[cfg.replyLang] && cfg.replyLang !== "es" ? cfg.replyLang : "auto";
+  const sig = auto + "|" + cur + "|" + LANG_KEYS.join();
+  if (sel.dataset.sig === sig) return;
+  sel.dataset.sig = sig; sel.innerHTML = "";
+  const o = el("option", null, "Automático (" + langName(auto) + ")"); o.value = "auto"; sel.appendChild(o);
+  for (const l of LANG_KEYS) if (l !== "es"){ const x = el("option", null, cap(langName(l))); x.value = l; sel.appendChild(x); }
+  sel.value = cur;
+}
+function targetName(lang){
+  if (lang === "es") return cfg.spanishOut === "es-ES" ? "Spanish from Spain" : "neutral Latin American Spanish";
+  const loc = partnerLocale(lang);
+
+  if (lang === "pt") return loc === "pt-BR" ? "Brazilian Portuguese" : "European Portuguese";
+  if (lang === "fr") return loc === "fr-CA" ? "Canadian French" : "French";
+  return LANGS[lang].english;
+}
+const segTo = seg => seg.speaker.lang !== "es" ? "es" : seg.partner;
+const voiceFor = lang => (cfg.voiceMap && cfg.voiceMap[lang]) || "";
+
+function onParticipantsChanged(){
+  lastPartnerLang = null;
+  prepareTranslators();
+  renderTwLangs();
+  renderReply();
+}
+{
+  const w0 = cfg.win && typeof cfg.win === "object" ? cfg.win : null, lm = load("layoutMode", 0);
+  const w = { dir: "row", A: { min: lm === 2, grow: 1 }, B: { min: lm === 1, grow: 1 }, C: { min: true, grow: 1 } };
+  if (w0){ w.dir = w0.dir === "col" ? "col" : "row"; for (const k of ["A", "B", "C"]) if (w0[k]) w[k] = { min: !!w0[k].min, grow: +w0[k].grow > 0 ? +w0[k].grow : 1 }; }
+  setCfg("win", w);
+}
+if (!LANGS[cfg.twFrom]) setCfg("twFrom", "es");
+if (!LANGS[cfg.twTo] || cfg.twTo === cfg.twFrom) setCfg("twTo", cfg.twFrom === "es" ? partnerLang() : "es");
+
+/* =====================================================================
+   Glossary: summary always sent; only matching terms per fragment
+   ===================================================================== */
+function norm(s){ return s.toLowerCase().normalize("NFD").replace(/\p{Mn}+/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim(); }
+class Glossary {
+  constructor(brief, userText, keepText){
+    const sum = []; const entries = []; let section = "summary";
+    for (const raw of (brief || "").split("\n")){
+      const line = raw.trim().replace(/^[*#\s]+/, "").replace(/[*\s]+$/, "");
+      if (!line) continue;
+      const up = line.toUpperCase();
+      if (up.startsWith("SUMMARY") || up.startsWith("RESUMEN")){ section = "summary"; const rest = line.split(":").slice(1).join(":").trim(); if (rest) sum.push(rest); continue; }
+      if (up.startsWith("GLOSSARY") || up.startsWith("GLOSARIO")){ section = "glossary"; continue; }
+      if (up.startsWith("NAMES") || up.startsWith("NOMBRES")){ section = "names"; continue; }
+      if (section === "summary") sum.push(line); else { const e = Glossary.entry(line); if (e) entries.push(e); }
+    }
+    this.summary = sum.join("\n").slice(0, 1500);
+    this.entries = entries;
+    this.user = (userText || "").split("\n").map(l => Glossary.entry(l.trim())).filter(Boolean);
+    this.keep = (keepText || "").split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+  }
+  static entry(line){
+    const clean = line.replace(/^[-•\s]+/, "").trim();
+    if (!clean) return null;
+    const keys = [...new Set(clean.split(/[=\/;(),]/).map(norm).filter(k => k.length >= 2))];
+    return keys.length ? { line: clean, keys } : null;
+  }
+  relevant(text, max = 25){
+    const t = " " + norm(text) + " ";
+    const hit = k => {
+      if (k.includes(" ")) return t.includes(" " + k);
+      if (k.length <= 4) return t.includes(" " + k + " ") || t.includes(" " + k + "s ");
+      if (t.includes(k)) return true;
+      return t.includes(" " + k.slice(0, Math.max(5, k.length - 2)));
+    };
+    return [...this.user, ...this.entries].filter(e => e.keys.some(hit)).slice(0, max).map(e => e.line);
+  }
+  keyterms(){
+    const out = [];
+    for (const e of [...this.user, ...this.entries]) for (const side of e.line.split("=")){
+      const t = side.split("(")[0].trim().replace(/[.,;]+$/, "");
+      if (t.length >= 3) out.push(t);
+    }
+    return [...new Set(out)];
+  }
+}
+let glossary = new Glossary(cfg.docBrief, cfg.userGlossary, cfg.keepTerms);
+const rebuildGlossary = () => { glossary = new Glossary(cfg.docBrief, cfg.userGlossary, cfg.keepTerms); };
+
+/* =====================================================================
+   UI helpers
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+let bannerKind = "";
+function showBanner(msg, kind, actionLabel, action){
+  $("bannerText").textContent = msg; $("banner").hidden = false; bannerKind = kind || "info";
+  const b = $("bannerAction"); b.hidden = !actionLabel;
+  if (actionLabel){ b.textContent = actionLabel; b.onclick = () => { hideBanner(); action(); }; }
+}
+function hideBanner(){ $("banner").hidden = true; bannerKind = ""; }
+function hideBannerIf(kind){ if (bannerKind === kind) hideBanner(); }
+$("bannerClose").onclick = hideBanner;
+const clock = ms => new Date(ms).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+const secs = ms => (ms / 1000).toFixed(1).replace(".", ",") + " s";
+const median = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
+function addLat(list, ms){ list.push(ms); if (list.length > 8) list.shift(); }
+const claudeOn = () => cfg.useClaude && !!cfg.claudeKey;
+const usingDeepgram = () => cfg.useDeepgram && !!cfg.deepgramKey;
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const segments = [];
+let current = null;
+let listening = false, activeDeepgram = false;
+let detectedLang = null, detectedTag = null;
+const speakerMap = new Map();
+const lastByLang = {};
+const instantLat = [], expertLat = [];
+let expertBlocked = false;
+const history = [];
+const CHUNK_WORDS = 8, HOLD_WORDS = 2, PAUSE_MS = 700;
+/** Keep the screen on while listening (phones and laptops would otherwise sleep mid-session). */
+let wakeLock = null, waking = false;
+async function syncAwake(){
+  if (waking) return;
+  const want = !!(listening && cfg.keepAwake);
+  waking = true;
+  try {
+    if (want && !wakeLock && navigator.wakeLock && document.visibilityState === "visible"){
+      const l = await navigator.wakeLock.request("screen"); wakeLock = l;
+      l.addEventListener("release", () => { if (wakeLock === l) wakeLock = null; });
+    } else if (!want && wakeLock){ const l = wakeLock; wakeLock = null; await l.release(); }
+  } catch (e){}
+  waking = false;
+  if (want !== !!(listening && cfg.keepAwake)) syncAwake();
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncAwake(); });
+
+/* =====================================================================
+   Rendering
+   ===================================================================== */
+function renderChips(){
+  const box = $("chips"); box.innerHTML = "";
+  const sel = selected().id;
+  cfg.participants.forEach((p, i) => {
+    const b = el("button", "chip" + (p.id === sel ? " on" : ""));
+    b.innerHTML = `<b>${esc(p.name)}</b><span>${esc(langName(p.lang).replace(/^./, c => c.toUpperCase()))}, ${esc(accentLabel(p.locale))}${p.isMe ? " · tú" : ""}</span>`;
+    b.title = `Tecla ${i + 1}. Clic derecho para editar.`;
+    b.onclick = () => selectSpeaker(p);
+    b.oncontextmenu = e => { e.preventDefault(); editParticipant(p); };
+    box.appendChild(b);
+  });
+  const add = el("button", "chip add", "+ Persona"); add.onclick = () => editParticipant(null); box.appendChild(add);
+  $("chipsHint").textContent = usingDeepgram() && cfg.diarize
+    ? "Quién habla se detecta solo. Si se equivoca, haz clic en el nombre correcto mientras habla o en el nombre de una frase. Clic derecho en una persona para editarla."
+    : "Haz clic en quién habla. Clic derecho en una persona para editarla.";
+
+  document.querySelectorAll("button[data-src]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.src === cfg.source)));
+}
+function renderTopic(){
+  const parts = [];
+  if (cfg.topic) parts.push(cfg.topic);
+  if (cfg.docName) parts.push("Documento: " + cfg.docName);
+  if (glossary.user.length) parts.push("Glosario propio: " + glossary.user.length);
+  $("topic").textContent = parts.join(". ");
+}
+function renderStatus(){
+  $("levelRow").hidden = !(listening && activeDeepgram);
+  const p = selected();
+  $("status").textContent = !listening ? "Pulsa el micrófono" : activeDeepgram ? "Escuchando · Deepgram" : "Escuchando a " + p.name;
+  if (!segments.length) $("cabinWho").textContent = `Habla: ${p.name} (${langName(p.lang)}, ${accentLabel(p.locale)})`;
+  const m = $("mic"); m.setAttribute("aria-pressed", String(listening)); m.setAttribute("aria-label", listening ? "Detener (F2)" : "Empezar a interpretar (F2)");
+  const src = { mic: "micrófono", system: "audio del PC", both: "micrófono y audio del PC" }[cfg.source];
+  const voice = cfg.outputMode === 0 ? "sin voz" : cfg.headphones ? "voz por los auriculares" : "voz por los altavoces (el micro se pausa mientras habla)";
+  $("route").textContent = `Escucha: ${src}. Salida: ${voice}.`;
+  renderReply(); syncAwake();
+}
+function renderLatency(){
+  $("latA").textContent = instantLat.length ? "retardo " + secs(median(instantLat)) : "";
+  $("latB").textContent = expertLat.length ? "retardo " + secs(median(expertLat)) : "";
+}
+function renderMode(){
+  document.querySelectorAll("button[data-out]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.out === cfg.outputMode)));
+  $("btnRepeat").hidden = cfg.outputMode === 0;
+}
+function renderClaudeToggle(){
+  const b = $("btnClaude");
+  b.textContent = !cfg.claudeKey ? "Claude: sin clave" : !cfg.useClaude ? "Claude: en pausa" : expertBlocked === "saldo" ? "Claude: sin saldo" : expertBlocked ? "Claude: clave no válida" : "Claude: activado";
+  b.classList.toggle("dim", !claudeOn() || !!expertBlocked);
+}
+function renderEmpty(){
+  $("emptyA").hidden = segments.length > 0;
+  $("emptyB").textContent = !cfg.claudeKey ? "Añade tu clave de Claude en Ajustes para ver aquí la traducción mejorada."
+    : !cfg.useClaude ? "Claude está en pausa: no se envía nada ni se gasta saldo. Tu clave sigue guardada."
+    : "Aquí aparece la versión revisada por Claude, trozo a trozo, con el tema, el glosario y los acentos.";
+  $("emptyB").hidden = claudeOn() && segments.some(s => s.chunks.some(c => c.wantExpert));
+  renderClaudeToggle();
+}
+function applyLayout(){
+  const audioOnly = cfg.outputMode === 1;
+  $("work").hidden = audioOnly; $("cabin").hidden = !audioOnly;
+  layoutPanes();
+  document.documentElement.style.setProperty("--fs", ["1.25rem", "1.45rem", "1.8rem"][cfg.textSize] || "1.45rem");
+  renderEmpty();
+}
+function renderAll(){ renderChips(); renderTopic(); renderStatus(); renderLatency(); renderMode(); applyLayout(); renderTwLangs(); }
+
+/* =====================================================================
+   Segments on screen (left: simultaneous, right: improved)
+   ===================================================================== */
+const words = t => t.trim().split(/\s+/).filter(Boolean);
+function stick(feed){ return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 140; }
+function newSegment(forced){
+  const speaker = forced ? forced.speaker : activeDeepgram ? resolveSpeaker(detectedTag, detectedLang || selected().lang) : { ...selected() };
+  const seg = { speaker, partner: forced ? forced.partner : speaker.lang !== "es" ? speaker.lang : partnerLang(), tag: !forced && activeDeepgram ? detectedTag : null, startedAt: forced ? forced.startedAt : Date.now(), src: "", srcAt: 0, committed: 0, stable: -1,
+    chunks: [], tailSrc: "", tailDraft: null, isFinal: false, pauseTimer: 0 };
+  if (!forced){ lastByLang[speaker.lang] = speaker.id; if (speaker.lang !== "es") lastPartnerLang = speaker.lang; }
+  const make = (feed, withSrc) => {
+    const row = el("div", "seg live"); row.appendChild(el("div", "bar"));
+    const col = el("div", "col");
+    const meta = el("button", "meta"); meta.title = "Cambiar quién lo dijo"; meta.onclick = () => reassignSegment(seg);
+    const tr = el("p", "tr");
+    col.append(meta, tr);
+    let src = null; if (withSrc){ src = el("p", "src"); col.appendChild(src); }
+    row.appendChild(col); feed.appendChild(row);
+    return { row, meta, tr, src };
+  };
+  seg.a = make($("feedA"), true);
+  seg.b = make($("feedB"), false); seg.b.row.hidden = true;
+  segments.push(seg);
+  for (const f of ["feedA", "feedB"]) while ($(f).children.length > 301) $(f).children[1].remove();
+  renderEmpty();
+  return seg;
+}
+function pieces(target, list){
+  target.textContent = "";
+  let first = true;
+  for (const [text, cls] of list){
+    if (!first) target.appendChild(document.createTextNode(" "));
+    first = false;
+    if (cls){ const s = el("span", cls, text); target.appendChild(s); } else target.appendChild(document.createTextNode(text));
+  }
+  if (first) target.appendChild(el("span", "wait", "…"));
+}
+function renderSeg(seg){
+  scheduleSave(); schedulePops();
+  const fa = $("feedA"), fb = $("feedB"); const sa = stick(fa), sb = stick(fb);
+  const meta = `${clock(seg.startedAt)} · ${seg.speaker.name}` + (seg.alert ? `   ⚑ ${seg.alert}` : "");
+  const a = seg.chunks.map(c => c.draft ? [c.draft, ""] : c.draftFailed ? ["[…]", "wait"] : ["…", "wait"]);
+  if (!seg.isFinal && seg.tailDraft) a.push([seg.tailDraft, "tail"]);
+  else if (!seg.isFinal && seg.tailSrc && (trState !== "ready" || !pairReady(seg))) a.push([seg.tailSrc, "tail"]);
+  pieces(seg.a.tr, a);
+  seg.a.src.textContent = seg.src;
+  seg.a.meta.textContent = meta;
+  seg.a.row.classList.toggle("live", !seg.isFinal);
+  const show = seg.chunks.some(c => c.wantExpert);
+  seg.b.row.hidden = !show;
+  if (show){
+    const b = [];
+    for (const c of seg.chunks){
+      if (c.covered) continue;
+      if (c.expertDone && c.expert) b.push([c.expert, ""]);
+      else if (c.expertFailed || !c.wantExpert){ if (c.draft) b.push([c.draft, "fallback"]); }
+      else if (c.expertPartial) b.push([c.expertPartial, ""]);
+      else b.push(["…", "wait"]);
+    }
+    pieces(seg.b.tr, b);
+    const reviewing = seg.chunks.some(c => c.wantExpert && !c.expertDone && !c.expertFailed);
+    seg.b.meta.textContent = meta + (reviewing ? "   revisando…" : "");
+    seg.b.row.classList.toggle("live", reviewing);
+  }
+  if (seg === segments[segments.length - 1]){
+    const line = improvedText(seg) || instantText(seg);
+    if (line){
+      $("cabinLine").textContent = line;
+      $("cabinWho").textContent = `${seg.speaker.name} (${langName(seg.speaker.lang)}) · ${clock(seg.startedAt)}`;
+    }
+  }
+  if (sa) fa.scrollTop = fa.scrollHeight;
+  if (sb) fb.scrollTop = fb.scrollHeight;
+}
+const instantText = seg => seg.chunks.map(c => c.draft).filter(Boolean).join(" ");
+const improvedText = seg => seg.chunks.map(c => c.covered ? "" : (c.expertDone && c.expert) || c.draft).filter(Boolean).join(" ");
+
+/* =====================================================================
+   Who is speaking
+   ===================================================================== */
+function resolveSpeaker(tag, lang){
+  const all = cfg.participants; let chosen;
+  if (tag != null && cfg.classMode && !speakerMap.has(tag)){
+    // Classroom: the voice that talks most is the teacher; the others are classmates (click a name to correct).
+    if (teacherTag == null) teacherTag = tag;
+    if (tag === teacherTag){
+      const teacher = all.find(p => !p.isMe) || selected();
+      if (cfg.selectedId !== teacher.id){ setCfg("selectedId", teacher.id); renderChips(); renderStatus(); }
+      return { ...teacher, lang };
+    }
+    return { id: "classmate", name: "Compañero/a", lang, locale: lang === "en" ? "en-US" : lang === "es" ? "es-ES" : partnerLocale(lang), notes: "", isMe: false };
+  }
+  if (tag == null){
+    chosen = all.find(p => p.id === cfg.selectedId && p.lang === lang) || all.find(p => p.lang === lang && !p.isMe) || all.find(p => p.lang === lang) || selected();
+  } else {
+    chosen = all.find(p => p.id === speakerMap.get(tag));
+    if (!chosen){
+      const taken = new Set(speakerMap.values());
+      chosen = all.find(p => p.lang === lang && !taken.has(p.id) && !p.isMe) || all.find(p => p.lang === lang && !taken.has(p.id)) || all.find(p => p.lang === lang) || selected();
+      speakerMap.set(tag, chosen.id);
+    }
+  }
+  if (cfg.selectedId !== chosen.id){ setCfg("selectedId", chosen.id); renderChips(); renderStatus(); }
+  return { ...chosen, lang };
+}
+function selectSpeaker(p){
+  if (listening && activeDeepgram){
+    if (detectedTag != null) speakerMap.set(detectedTag, p.id);
+    if (current && !current.isFinal){ current.speaker = { ...p, lang: current.speaker.lang }; renderSeg(current); }
+  }
+  setCfg("selectedId", p.id);
+  renderChips(); renderStatus();
+  if (p.lang !== "es") lastPartnerLang = p.lang;
+  if (listening && !activeDeepgram && webSpeech) webSpeech.restart(p.locale);
+}
+function reassignSegment(seg){
+  openDialog(`<h3>¿Quién dijo esto?</h3><div class="list">${cfg.participants.map((p, i) => `<button data-i="${i}">${esc(p.name)}</button>`).join("")}</div><div class="actions"><button class="btn" data-close>Cancelar</button></div>`, body => {
+    body.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
+      const p = cfg.participants[+b.dataset.i];
+      seg.speaker = { ...p, lang: seg.speaker.lang };
+      if (seg.tag != null) speakerMap.set(seg.tag, p.id);
+      renderSeg(seg); closeDialog();
+    });
+  });
+}
+
+/* =====================================================================
+   Speech → fragments
+   ===================================================================== */
+function onHeard(text, stable, phraseEnd){
+  hideBannerIf("net");
+  const seg = current || (current = newSegment());
+  seg.src = text; seg.stable = stable; seg.srcAt = performance.now();
+  commitChunks(seg, false, phraseEnd);
+  refreshTail(seg); schedulePause(seg); renderSeg(seg);
+}
+function onFinal(text){
+  const seg = current || newSegment();
+  current = null;
+  clearTimeout(seg.pauseTimer);
+  seg.src = text; seg.srcAt = performance.now(); seg.isFinal = true;
+  commitChunks(seg, true, false);
+  seg.tailSrc = ""; seg.tailDraft = null; tailQueue.delete(seg);
+  renderSeg(seg);
+  afterPhrase(seg);
+}
+function onDetected(lang, speaker){
+  const l = lang ? lang.slice(0, 2).toLowerCase() : null;
+  detectedLang = (l && LANGS[l]) ? l : null;
+  detectedTag = cfg.diarize ? speaker : null;
+  if (current && !current.isFinal && !current.chunks.length){
+    current.speaker = resolveSpeaker(detectedTag, detectedLang || current.speaker.lang);
+    current.tag = detectedTag; renderSeg(current);
+  }
+}
+function commitChunks(seg, isEnd, phraseEnd){
+  const w = words(seg.src);
+  const upto = isEnd ? w.length : seg.stable >= 0 ? Math.min(seg.stable, w.length) : w.length - HOLD_WORDS;
+  if (upto <= seg.committed) return;
+  const min = seg.stable >= 0 ? 3 : CHUNK_WORDS;
+  if (!isEnd && !phraseEnd && upto - seg.committed < min) return;
+  addChunk(seg, w.slice(seg.committed, upto).join(" "), isEnd || phraseEnd);
+  seg.committed = upto;
+}
+function schedulePause(seg){
+  clearTimeout(seg.pauseTimer);
+  seg.pauseTimer = setTimeout(() => {
+    if (seg.isFinal || current !== seg) return;
+    const w = words(seg.src);
+    const limit = seg.stable >= 0 ? Math.min(seg.stable, w.length) : w.length;
+    if (limit > seg.committed){ addChunk(seg, w.slice(seg.committed, limit).join(" "), false); seg.committed = limit; refreshTail(seg); renderSeg(seg); }
+  }, PAUSE_MS);
+}
+function addChunk(seg, text, isEnd){
+  const c = { src: text, isEnd, endIdx: seg.committed + words(text).length, wantExpert: claudeOn() && !expertBlocked, createdAt: performance.now(),
+    draft: null, draftFailed: false, expert: null, expertDone: false, expertFailed: false, spoken: false };
+  seg.chunks.push(c);
+  draftChunks.push([seg, c]); pumpDraft();
+  if (c.wantExpert){ expertQueue.push([seg, c]); pumpExpert(); }
+  renderEmpty();
+}
+function refreshTail(seg){
+  const w = words(seg.src);
+  seg.tailSrc = w.length > seg.committed ? w.slice(seg.committed).join(" ") : "";
+  if (!seg.tailSrc){ seg.tailDraft = null; return; }
+  tailQueue.add(seg); pumpDraft();
+}
+
+/* =====================================================================
+   Instant translation: Chrome's on-device Translator
+   ===================================================================== */
+let trState = "unknown"; // unknown | preparing | ready | unavailable
+const pairCache = {};    // "de>es" -> { translate(text) }, or null when Chrome has no model for that pair
+const pairKey = (a, b) => a + ">" + b;
+/** Translator for one language pair. Without a direct model it goes through English. A NotAllowedError (Chrome wants a click to download) is passed on and nothing is cached. */
+async function getPair(from, to){
+  const key = pairKey(from, to);
+  if (key in pairCache) return pairCache[key];
+  if (!("Translator" in self)) return null;
+  const monitor = m => m.addEventListener("downloadprogress", e => showBanner(`Descargando el traductor del PC (solo la primera vez)… ${Math.round((e.loaded || 0) * 100)} %`, "download"));
+  const direct = async (a, b) => {
+    let av; try { av = await Translator.availability({ sourceLanguage: a, targetLanguage: b }); } catch (e){ return null; }
+    if (av === "unavailable") return null;
+    return await Translator.create({ sourceLanguage: a, targetLanguage: b, monitor });
+  };
+  let pair = null;
+  const t = await direct(from, to);
+  if (t) pair = { translate: x => t.translate(x) };
+  else if (from !== "en" && to !== "en"){
+    const t1 = await direct(from, "en"), t2 = t1 && await direct("en", to);
+    if (t1 && t2) pair = { translate: async x => t2.translate(await t1.translate(x)), pivot: true };
+  }
+  pairCache[key] = pair;
+  return pair;
+}
+function neededPairs(){
+  const out = [];
+  for (const l of new Set(cfg.participants.map(p => p.lang))) if (l !== "es") out.push([l, "es"], ["es", l]);
+  return out;
+}
+async function pairFor(seg){
+  const from = seg.speaker.lang, to = segTo(seg);
+  if (from === to) return { translate: async x => x };
+  const key = pairKey(from, to);
+  if (key in pairCache) return pairCache[key];
+  try { return await getPair(from, to); } catch (e){ return null; }
+}
+const pairReady = seg => { const f = seg.speaker.lang, t = segTo(seg); return f === t || !!pairCache[pairKey(f, t)]; };
+async function prepareTranslators(){
+  if (trState === "preparing") return;
+  if (!("Translator" in self)){
+    if (trState !== "unavailable"){ trState = "unavailable"; showBanner("Este navegador no trae traductor integrado: la columna Simultánea mostrará el texto original. Usa Google Chrome actualizado para tenerla.", "info"); }
+    return;
+  }
+  const need = neededPairs().filter(([a, b]) => !(pairKey(a, b) in pairCache));
+  if (trState === "ready" && !need.length) return;
+  trState = "preparing";
+  try {
+    for (const [a, b] of need) await getPair(a, b);
+    const missing = neededPairs().filter(([a, b]) => !pairCache[pairKey(a, b)]).map(([a, b]) => `${langName(a)} a ${langName(b)}`);
+    trState = "ready"; hideBannerIf("download");
+    if (missing.length) showBanner(`El traductor de Chrome no cubre: ${missing.join(", ")}. En esos casos la columna Simultánea mostrará el texto original y solo traducirá la Mejorada (Claude).`, "info");
+    for (const s of segments.slice(-3)) for (const c of s.chunks) if (!c.draft){ c.draftFailed = false; draftChunks.push([s, c]); }
+    pumpDraft();
+  } catch (e){
+    if (e && e.name === "NotAllowedError"){
+      // Chrome wants its own click to download the translator the first time.
+      trState = "unknown";
+      showBanner("Para la traducción instantánea, Chrome necesita descargar su traductor (solo una vez).", "download", "Descargar traductor", prepareTranslators);
+    } else {
+      trState = "unavailable";
+      showBanner("El traductor integrado de Chrome no está disponible aquí: la columna Simultánea mostrará el texto original.", "info");
+    }
+    pumpDraft();
+  }
+}const draftChunks = []; const tailQueue = new Set(); let draftBusy = false;
+async function pumpDraft(){
+  if (draftBusy) return;
+  if (trState !== "ready"){
+    if (trState === "preparing") return;
+    while (draftChunks.length){ const [s, c] = draftChunks.shift(); c.draft = c.src; renderSeg(s); maybeSpeak(s); }
+    tailQueue.clear(); return;
+  }
+  if (draftChunks.length){
+    const [seg, c] = draftChunks.shift(); draftBusy = true;
+    try { const tr = await pairFor(seg); if (tr){ c.draft = await tr.translate(c.src); addLat(instantLat, performance.now() - c.createdAt); } else c.draft = c.src; }
+    catch (e){ c.draftFailed = true; }
+    draftBusy = false; renderSeg(seg); renderLatency(); maybeSpeak(seg); pumpDraft(); return;
+  }
+  if (tailQueue.size){
+    const seg = tailQueue.values().next().value; tailQueue.delete(seg);
+    const text = seg.tailSrc;
+    if (!text || seg.isFinal){ pumpDraft(); return; }
+    const heard = seg.srcAt; draftBusy = true;
+    try { const out = await (await pairFor(seg) || { translate: async x => x }).translate(text); if (!seg.isFinal){ seg.tailDraft = out; addLat(instantLat, performance.now() - heard); renderSeg(seg); renderLatency(); } }
+    catch (e){}
+    draftBusy = false;
+    if (!seg.isFinal && seg.tailSrc && seg.tailSrc !== text) tailQueue.add(seg);
+    pumpDraft();
+  }
+}
+
+/* =====================================================================
+   Claude
+   ===================================================================== */
+const FAST_MODEL = "claude-haiku-4-5-20251001", SMART_MODEL = "claude-sonnet-5";
+class ClaudeError extends Error { constructor(code, msg){ super(msg); this.code = code; } }
+async function claude(model, system, content, maxTokens, timeoutMs){
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
+      headers: { "content-type": "application/json", "x-api-key": cfg.claudeKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model, max_tokens: maxTokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages: [{ role: "user", content }] }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new ClaudeError(r.status, (data.error && data.error.message) || "HTTP " + r.status);
+    return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("").trim();
+  } finally { clearTimeout(timer); }
+}
+/** Same as claude() but streams the text as it is written. */
+async function claudeStream(model, system, content, maxTokens, timeoutMs, onText){
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
+      headers: { "content-type": "application/json", "x-api-key": cfg.claudeKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model, max_tokens: maxTokens, stream: true, system: [{ type: "text", text: system }], messages: [{ role: "user", content }] }) });
+    if (!r.ok){ const data = await r.json().catch(() => ({})); throw new ClaudeError(r.status, (data.error && data.error.message) || "HTTP " + r.status); }
+    if (!r.body) return await r.text();
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "", out = "";
+    for (;;){
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0){
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (e){ continue; }
+        if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta"){ out += ev.delta.text; onText(out); }
+        else if (ev.type === "error") throw new ClaudeError(529, (ev.error && ev.error.message) || "error");
+      }
+    }
+    return out.trim();
+  } finally { clearTimeout(timer); }
+}
+/** Errors that will not fix themselves: "clave" (bad key) or "saldo" (no credit). */
+function claudeBlock(e){
+  if (!(e instanceof ClaudeError)) return "";
+  if (e.code === 401 || e.code === 403) return "clave";
+  if (e.code === 400 && /credit balance|billing|purchase credits/i.test(e.message || "")) return "saldo";
+  return "";
+}
+let lastNetBanner = 0;
+function claudeMessage(e){
+  if (!(e instanceof ClaudeError)) return "Sin conexión con Claude: se usa la traducción simultánea.";
+  if (e.code === 401) return "La clave de Claude no es válida. Revísala en Ajustes.";
+  if (e.code === 403) return "Esa clave de Claude no tiene permiso para este uso.";
+  if (e.code === 413) return "El documento es demasiado grande para Claude. Prueba con uno más corto.";
+  if (claudeBlock(e) === "saldo") return "Tu cuenta de Claude se ha quedado sin saldo. Recárgalo en console.anthropic.com (Plans & Billing). Mientras tanto uso la traducción instantánea.";
+  if (e.code === 429) return "Se alcanzó el límite de uso de tu cuenta de Claude. Mientras tanto se usa la traducción simultánea.";
+  if (e.code >= 500) return "Claude está saturado ahora mismo; se usa la traducción simultánea.";
+  return `Claude no pudo responder (${e.code}): ${e.message}`;
+}
+const cleanOut = s => { let t = s.trim().replace(/^(translation|traducción|traduccion|spanish|english|español|inglés|ingles|new fragment|fragmento)\s*:\s*/i, "").trim(); if (/^["“«].*["”»]$/.test(t)) t = t.slice(1, -1).trim(); return t; };
+
+/** Rules shared by the live interpreter and the written-translation window. */
+const IDIOM_RULES =
+  "MEANING OVER WORDS (very important). Never translate word for word. When the speaker or writer uses an idiom, proverb, set phrase, phrasal verb, collocation, sarcasm, understatement, exaggeration, swear word or slang (regional, youth and internet slang included), convey what they MEAN with the natural equivalent in the target language, in the same register (formal, casual, vulgar, humorous) and with the same tone. Prefer a real idiom of the target language when one exists; otherwise use a short plain phrase with the same meaning. Keep fillers and discourse markers natural (well, you know, pues, oye, bueno) instead of dropping them or translating them literally. Never explain the expression and never add notes. Examples: " +
+  "'it's raining cats and dogs' = 'está lloviendo a cántaros'; 'break a leg' = 'mucha suerte'; 'I'm swamped' = 'estoy hasta arriba de trabajo'; 'piece of cake' = 'pan comido'; 'he kicked the bucket' = 'estiró la pata'; 'no cap' = 'te lo juro'; 'that's lit' = 'está genial'; " +
+  "'estar en las nubes' = 'to have your head in the clouds'; 'no tener pelos en la lengua' = 'not to mince words'; 'me quedé de piedra' = 'I was stunned'; 'flipar' = 'to be blown away'; 'estar hecho polvo' = 'to be wiped out'; " +
+  "'Ich verstehe nur Bahnhof' = 'no entiendo ni una palabra'; 'Das ist mir Wurst' = 'me da igual'; 'poser un lapin' = 'dejar plantado'; 'in bocca al lupo' = 'mucha suerte'; 'não vou com a tua cara' = 'no me cae bien'.";
+const FRAGMENT_RULES = " Because the speech arrives in fragments, an expression can be cut in two. When words heard right after the fragment are given, use them to recognise an expression that is cut at the end of this fragment and render the meaning of the WHOLE expression in this fragment. If a fragment contains only the leftover words of an expression whose meaning was already rendered in the previous output, reply with exactly: ...";
+const expertQueue = []; let expertActive = 0; const EXPERT_PARALLEL = 2;
+function pumpExpert(){
+  // Stay live: if Claude falls behind, older fragments keep their instant version.
+  while (expertQueue.length > 4){ const [s, c] = expertQueue.shift(); c.expertFailed = true; renderSeg(s); maybeSpeak(s); }
+  while (expertActive < EXPERT_PARALLEL && expertQueue.length){ const [seg, c] = expertQueue.shift(); runExpert(seg, c); }
+}
+async function runExpert(seg, c){
+  if (!claudeOn() || expertBlocked){ c.expertFailed = true; renderSeg(seg); maybeSpeak(seg); return; }
+  expertActive++;
+  const fromLang = seg.speaker.lang, toLang = segTo(seg);
+  const target = targetName(toLang);
+  const langList = [...new Set(cfg.participants.map(p => (LANGS[p.lang] || LANGS.en).english))].join(", ");
+  let system = "You are a certified professional conference interpreter doing live simultaneous interpretation between Spanish and the other languages of the participants (" + langList + ") " +
+    (cfg.topic ? `in a session about: ${cfg.topic}.` : "in a class or a work meeting.") +
+    "\nSpeech reaches you in short fragments while the person is still talking. Translate ONLY the new fragment, continuing naturally from the previous output: never repeat what was already said, never finish ideas the speaker has not said yet, and only close the sentence when the fragment ends the speaker's sentence.\n" +
+    "The source comes from automatic speech recognition: it has little or no punctuation and may contain misheard words, especially because of the speaker's accent or way of speaking. Silently repair them using the context, the participant notes and the glossary. Keep terminology and names consistent. Reply with the translation of the new fragment only: no quotes, labels, notes or alternatives.\n\n" +
+    IDIOM_RULES + FRAGMENT_RULES + "\n\nParticipants:\n" +
+    cfg.participants.map(p => "- " + describe(p)).join("\n") + "\n";
+  if (glossary.summary) system += "\nSession summary:\n" + glossary.summary + "\n";
+  if (glossary.keep.length) system += "\nNever translate these names or brands, keep them exactly as written: " + glossary.keep.join(", ") + "\n";
+  const terms = glossary.relevant(c.src + " " + seg.tailSrc);
+  const idx = seg.chunks.indexOf(c);
+  const before = seg.chunks.slice(Math.max(0, idx - 2), Math.max(0, idx)).map(p => `${seg.speaker.name}: ${p.src} => ${(p.expertDone && p.expert) || p.draft || "…"}`);
+  const recent = [...history.slice(-3), ...before.filter(line => !history.includes(line))];
+  let user = "";
+  if (recent.length) user += "Recent interpretation (context only, do not translate it again):\n" + recent.join("\n") + "\n\n";
+  if (terms.length) user += "Glossary terms that may apply:\n" + terms.join("\n") + "\n\n";
+  const ahead = words(seg.src).slice(c.endIdx, c.endIdx + 10).join(" ");
+  user += `Speaker now: ${describe(seg.speaker)}\nDirection: ${(LANGS[fromLang] || LANGS.en).english} -> ${target}\n` +
+    (c.isEnd ? "This fragment ends the speaker's sentence.\n" : "The speaker's sentence may continue after this fragment.\n") +
+    (ahead ? `Words heard right after this fragment (context only, do not translate them): ${ahead}\n` : "") + "NEW fragment:\n" + c.src;
+  let first = true;
+  try {
+    const out = cleanOut(await claudeStream(cfg.expertQuality === "smart" ? SMART_MODEL : FAST_MODEL, system, [{ type: "text", text: user }], 300, cfg.expertQuality === "smart" ? 15000 : 8000, partial => {
+      if (first){ first = false; addLat(expertLat, performance.now() - c.createdAt); renderLatency(); }
+      c.expertPartial = cleanOut(partial); renderSeg(seg);
+    }));
+    c.expertDone = true;
+    if (/^[.…\s]{1,5}$/.test(out)){ c.covered = true; c.expert = ""; } else if (!out){ c.expertDone = false; c.expertFailed = true; } else c.expert = out;
+    if (first) addLat(expertLat, performance.now() - c.createdAt);
+    history.push(`${seg.speaker.name}: ${c.src} => ${out}`); if (history.length > 12) history.shift();
+  } catch (e){
+    c.expertFailed = true;
+    const why = claudeBlock(e);
+    if (why){
+      if (!expertBlocked){
+        expertBlocked = why; renderClaudeToggle();
+        showBanner(claudeMessage(e), "net", why === "saldo" ? "Recargar saldo" : "Abrir Ajustes", () => why === "saldo" ? window.open("https://console.anthropic.com/settings/billing", "_blank", "noopener") : openSettings());
+      }
+    } else if (Date.now() - lastNetBanner > 15000){ lastNetBanner = Date.now(); showBanner(claudeMessage(e), "net"); }
+  }
+  expertActive--; renderSeg(seg); renderLatency(); maybeSpeak(seg); pumpExpert();
+}
+function toggleClaude(){
+  if (!cfg.claudeKey){ showBanner("Primero añade tu clave de Claude en Ajustes.", "info"); return; }
+  setCfg("useClaude", !cfg.useClaude);
+  if (!cfg.useClaude){ while (expertQueue.length){ const [s, c] = expertQueue.shift(); c.expertFailed = true; renderSeg(s); maybeSpeak(s); } }
+  else expertBlocked = false;
+  renderEmpty(); renderClaudeToggle();
+}
+
+/* =====================================================================
+   Voice output
+   ===================================================================== */
+let voices = [];
+function loadVoices(){ try { voices = speechSynthesis.getVoices() || []; } catch (e){ voices = []; } }
+if ("speechSynthesis" in self){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+const voicesFor = lang => voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(lang));
+const targetLang = seg => localeFor(segTo(seg));
+let speakingCount = 0, ttsPending = 0;
+function say(text, lang, loud, live){
+  if (!("speechSynthesis" in self) || !text) return;
+  if (live && ttsPending >= 3){
+    // The voice has fallen behind the speaker: drop what is queued and continue with the newest.
+    try { speechSynthesis.cancel(); } catch (e){}
+    ttsPending = 0; speakingCount = 0; audioIn.muted = false;
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = live ? Math.min(2, cfg.rate * (1 + 0.15 * ttsPending)) : cfg.rate; // speed up a little when there is a backlog
+  ttsPending++;
+  const want = voiceFor(lang.slice(0, 2));
+  // Voices installed in Windows start speaking sooner than online ones.
+  const v = voices.find(x => x.name === want) || voices.find(x => x.lang === lang && x.localService) || voices.find(x => x.lang === lang) ||
+    voicesFor(lang.slice(0, 2)).find(x => x.localService) || voicesFor(lang.slice(0, 2))[0];
+  if (v) u.voice = v;
+  const mute = loud && !cfg.headphones;
+  u.onstart = () => { speakingCount++; if (mute) audioIn.muted = true; };
+  const end = () => { ttsPending = Math.max(0, ttsPending - 1); speakingCount = Math.max(0, speakingCount - 1); if (mute) setTimeout(() => { if (!speakingCount) audioIn.muted = false; }, 300); };
+  u.onend = end; u.onerror = end;
+  speechSynthesis.speak(u);
+}
+function maybeSpeak(seg){
+  for (const c of seg.chunks){
+    if (c.spoken) continue;
+    const precise = cfg.voiceSource === "precise" && c.wantExpert;
+    const ready = precise ? (c.expertDone || c.expertFailed) && (c.expertDone || c.draft != null || c.draftFailed) : (c.draft != null || c.draftFailed);
+    if (!ready) return;
+    c.spoken = true; if (c.covered && precise) continue;
+    if (!listening || cfg.outputMode === 0) continue;
+    const text = precise ? ((c.expertDone && c.expert) || c.draft) : (c.draft || c.expert);
+    if (!text || ((trState !== "ready" || !pairReady(seg)) && text === c.src && !c.expertDone)) continue;
+    if (seg.speaker.isMe && !cfg.speakMine) continue;
+    say(text, targetLang(seg), true, true);
+  }
+}
+function repeatLast(){
+  const seg = [...segments].reverse().find(s => !s.speaker.isMe && s.chunks.length);
+  if (!seg) return;
+  const text = cfg.voiceSource === "precise" ? improvedText(seg) : instantText(seg);
+  if (text) say(text, targetLang(seg), true);
+}
+
+/* =====================================================================
+   Audio input: microphone and/or the PC's own audio → 16 kHz PCM
+   ===================================================================== */
+const WORKLET = `
+class Pcm16 extends AudioWorkletProcessor {
+  constructor(){ super(); this.ratio = sampleRate / 16000; this.pos = 0; this.acc = 0; this.cnt = 0; this.buf = new Int16Array(800); this.n = 0; }
+  process(inputs){
+    const ch = inputs[0] && inputs[0][0];
+    if (ch){
+      for (let i = 0; i < ch.length; i++){
+        this.acc += ch[i]; this.cnt++; this.pos += 1;
+        if (this.pos >= this.ratio){
+          this.pos -= this.ratio;
+          let s = this.acc / this.cnt; this.acc = 0; this.cnt = 0;
+          s = s < -1 ? -1 : s > 1 ? 1 : s;
+          this.buf[this.n++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          if (this.n === this.buf.length){ this.port.postMessage(this.buf.buffer, [this.buf.buffer]); this.buf = new Int16Array(800); this.n = 0; }
+        }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("pcm16", Pcm16);`;
+const audioIn = {
+  ctx: null, node: null, streams: [], muted: false, onChunk: null,
+  async open(source){
+    this.close();
+    let display = null;
+    if (source === "system" || source === "both"){
+      // Must be the first thing after the click: Chrome only allows it right after a user action.
+      display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, systemAudio: "include" });
+      if (!display.getAudioTracks().length){ display.getTracks().forEach(t => t.stop()); throw new Error("noaudio"); }
+      display.getVideoTracks().forEach(t => { t.enabled = false; });
+      this.streams.push(display);
+    }
+    const ctx = new AudioContext();
+    this.ctx = ctx;
+    const sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+    let node;
+    try {
+      // Preferred: audio worklet (off the main thread). Chrome blocks it for pages opened from disk,
+      // so there is a fallback below that works everywhere.
+      await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+      node = new AudioWorkletNode(ctx, "pcm16");
+      node.port.onmessage = e => { if (!this.muted && this.onChunk) this.onChunk(e.data); };
+    } catch (e){
+      node = ctx.createScriptProcessor(2048, 1, 1);
+      const ratio = ctx.sampleRate / 16000;
+      let pos = 0, acc = 0, cnt = 0, buf = new Int16Array(800), n = 0;
+      node.onaudioprocess = ev => {
+        const ch = ev.inputBuffer.getChannelData(0);
+        for (let i = 0; i < ch.length; i++){
+          acc += ch[i]; cnt++; pos += 1;
+          if (pos >= ratio){
+            pos -= ratio;
+            let v = acc / cnt; acc = 0; cnt = 0;
+            v = v < -1 ? -1 : v > 1 ? 1 : v;
+            buf[n++] = v < 0 ? v * 0x8000 : v * 0x7FFF;
+            if (n === buf.length){ const out = buf.buffer; buf = new Int16Array(800); n = 0; if (!this.muted && this.onChunk) this.onChunk(out); }
+          }
+        }
+      };
+    }
+    node.connect(sink);
+    this.node = node;
+    if (source === "mic" || source === "both"){
+      // Classroom: no echo cancellation (it can eat a distant voice), noise suppression and automatic gain on.
+      const base = { echoCancellation: !cfg.classMode, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
+      let s = null;
+      if (cfg.micId){
+        try { s = await navigator.mediaDevices.getUserMedia({ audio: { ...base, deviceId: { exact: cfg.micId } } }); }
+        catch (e){
+          if (!e || (e.name !== "OverconstrainedError" && e.name !== "NotFoundError")) throw e;
+          showBanner("No encuentro el micrófono elegido en Ajustes; uso el predeterminado.", "info");
+        }
+      }
+      if (!s) s = await navigator.mediaDevices.getUserMedia({ audio: base });
+      this.streams.push(s); ctx.createMediaStreamSource(s).connect(node);
+    }
+    if (display){
+      ctx.createMediaStreamSource(new MediaStream(display.getAudioTracks())).connect(node);
+      display.getAudioTracks()[0].addEventListener("ended", () => { if (listening){ stopListening(); showBanner("Se dejó de compartir el audio del PC.", "info"); } });
+    }
+    if (ctx.state === "suspended") await ctx.resume();
+  },
+  close(){
+    this.streams.forEach(s => s.getTracks().forEach(t => t.stop())); this.streams = [];
+    if (this.ctx){ try { this.ctx.close(); } catch (e){} }
+    this.ctx = null; this.node = null; this.muted = false;
+  }
+};
+
+/* =====================================================================
+   Deepgram: continuous recognition, code-switching, voices
+   ===================================================================== */
+const deepgram = {
+  ws: null, open: false, running: false, gen: 0, attempts: 0, backlog: [], keepTimer: 0, lastFinalAt: 0, lastForceAt: 0,
+  finalWords: [], interim: [], uttLang: null, uttSpeaker: null, announced: false, lastText: "",
+  url(){
+    const lang = "multi";
+    const q = new URLSearchParams({ model: "nova-3", language: lang, encoding: "linear16", sample_rate: "16000", channels: "1",
+      interim_results: "true", punctuate: "true", smart_format: "true", no_delay: "true", endpointing: "100", utterance_end_ms: "1000" });
+    if (cfg.diarize) q.append("diarize", "true");
+    let used = 0;
+    for (const t of keytermList()){ if (used + t.length > 900) break; q.append("keyterm", t); used += t.length + 1; }
+    return "wss://api.deepgram.com/v1/listen?" + q.toString();
+  },
+  start(){
+    this.running = true; this.attempts = 0; this.backlog = []; this.lastFinalAt = performance.now(); this.lastForceAt = 0;
+    this.connect();
+    this.keepTimer = setInterval(() => { if (this.open && audioIn.muted) try { this.ws.send(JSON.stringify({ type: "KeepAlive" })); } catch (e){} }, 4000);
+  },
+  send(buf){
+    if (!this.running) return;
+    if (this.open && this.ws.readyState === 1) this.ws.send(buf);
+    else { this.backlog.push(buf); while (this.backlog.length > 160) this.backlog.shift(); }
+  },
+  connect(){
+    const my = ++this.gen; this.open = false;
+    let ws;
+    try { ws = new WebSocket(this.url(), ["token", cfg.deepgramKey]); }
+    catch (e){ this.fatal("No se pudo conectar con Deepgram."); return; }
+    ws.binaryType = "arraybuffer"; this.ws = ws;
+    let opened = false;
+    ws.onopen = () => { if (my !== this.gen) return; opened = true; this.open = true; this.attempts = 0; speakerMap.clear(); hideBannerIf("net");
+      while (this.backlog.length) ws.send(this.backlog.shift()); };
+    ws.onmessage = e => { if (my === this.gen && typeof e.data === "string") this.handle(e.data); };
+    ws.onclose = e => {
+      if (my !== this.gen) return;
+      this.open = false;
+      if (!this.running){ this.flush(); return; }
+      if (!opened && this.attempts === 0 && (e.code === 1006 || e.code === 1008)){
+        this.refused("Deepgram no ha aceptado la conexión: la clave no es válida, la cuenta se ha quedado sin saldo o no hay internet. Revísalo en Ajustes («Probar claves»).");
+        return;
+      }
+      if (e.code === 1008){ this.fatal("Deepgram rechazó la configuración: " + (e.reason || "parámetros no válidos") + "."); return; }
+      this.retry();
+    };
+  },
+  retry(){
+    this.attempts++;
+    // Keep trying for about a minute (audio of the last seconds is kept) before giving up on Deepgram.
+    if (this.attempts > 15){ this.running = false; clearInterval(this.keepTimer); onStreamLost("Deepgram no responde desde hace casi un minuto (¿internet o saldo?)."); return; }
+    showBanner(this.attempts <= 3 ? "Reconectando con Deepgram…" : "Sin conexión con Deepgram: sigo intentándolo. Comprueba internet y el saldo de Deepgram.", "net");
+    const my = this.gen;
+    setTimeout(() => { if (this.running && my === this.gen) this.connect(); }, Math.min(800 * this.attempts, 5000));
+  },
+  refused(msg){ this.running = false; clearInterval(this.keepTimer); try { this.ws && this.ws.close(); } catch (e){} this.flush(); onStreamLost(msg); },
+  fatal(msg){ this.running = false; clearInterval(this.keepTimer); try { this.ws && this.ws.close(); } catch (e){} this.flush(); onProblem(msg, true); },
+  stop(){
+    if (!this.running) return;
+    this.running = false; clearInterval(this.keepTimer);
+    const ws = this.ws, my = this.gen;
+    if (ws && ws.readyState === 1){ try { ws.send(JSON.stringify({ type: "CloseStream" })); } catch (e){} }
+    setTimeout(() => { try { ws && ws.close(); } catch (e){} if (my === this.gen) this.flush(); }, 2500);
+  },
+  handle(raw){
+    let msg; try { msg = JSON.parse(raw); } catch (e){ return; }
+    if (msg.type === "Results") this.results(msg);
+    else if (msg.type === "UtteranceEnd") this.flush();
+  },
+  majority(xs){ const m = new Map(); for (const x of xs) if (x != null) m.set(x, (m.get(x) || 0) + 1); let best = null, n = 0; for (const [k, v] of m) if (v > n){ best = k; n = v; } return best; },
+  results(msg){
+    const alt = msg.channel && msg.channel.alternatives && msg.channel.alternatives[0]; if (!alt) return;
+    const ws = (alt.words || []).map(w => ({ text: (w.punctuated_word || w.word || "").trim(), lang: w.language || null, speaker: w.speaker != null ? w.speaker : null, conf: typeof w.confidence === "number" ? w.confidence : -1 })).filter(w => w.text);
+    if (msg.is_final){ const cs = ws.map(w => w.conf).filter(c => c >= 0); if (cs.length) onConfidence(cs.reduce((a, b) => a + b, 0) / cs.length); }
+    const spk = this.majority(ws.map(w => w.speaker)), lang = this.majority(ws.map(w => w.lang));
+    const differs = (spk != null && this.uttSpeaker != null && spk !== this.uttSpeaker) || (lang && this.uttLang && lang !== this.uttLang);
+    if (msg.is_final){
+      this.lastFinalAt = performance.now();
+      if (ws.length){
+        if (this.finalWords.length && differs) this.flush();
+        if (!this.finalWords.length) this.announce(lang, spk);
+        this.finalWords.push(...ws);
+      }
+      this.interim = []; this.emit(!!msg.speech_final);
+    } else {
+      if (ws.length >= 3 && this.finalWords.length && differs) this.flush();
+      // Someone talking without pauses: ask Deepgram to close what it has instead of waiting for a pause.
+      const now = performance.now();
+      if (ws.length >= 9 && now - this.lastFinalAt > 1800 && now - this.lastForceAt > 1800 && this.open && this.ws.readyState === 1){
+        this.lastForceAt = now;
+        try { this.ws.send(JSON.stringify({ type: "Finalize" })); } catch (e){}
+      }
+      this.interim = ws;
+      if (!this.finalWords.length && !this.announced && ws.length) this.announce(lang, spk);
+      this.emit(false);
+    }
+  },
+  announce(lang, spk){ if (this.announced && lang === this.uttLang && spk === this.uttSpeaker) return; this.uttLang = lang; this.uttSpeaker = spk; this.announced = true; onDetected(lang, spk); },
+  emit(phraseEnd){
+    const all = [...this.finalWords, ...this.interim].map(w => w.text);
+    if (!all.length) return;
+    this.lastText = all.join(" ");
+    onHeard(this.lastText, this.finalWords.length, phraseEnd);
+  },
+  flush(){
+    const text = this.finalWords.length ? this.finalWords.map(w => w.text).join(" ") : this.lastText;
+    if (text.trim()) onFinal(text);
+    this.finalWords = []; this.interim = []; this.uttLang = null; this.uttSpeaker = null; this.announced = false; this.lastText = "";
+  }
+};
+function keytermList(){
+  const out = cfg.participants.map(p => p.name).filter(n => !["yo", "ponente", "participante"].includes(n.toLowerCase()));
+  out.push(...glossary.keep, ...glossary.keyterms());
+  return [...new Set(out.map(s => s.trim()).filter(s => s.length >= 2 && s.length <= 40 && s.split(" ").length <= 4))].slice(0, 60);
+}
+
+/* =====================================================================
+   Without Deepgram: Chrome's own speech recognition (microphone only)
+   ===================================================================== */
+let webSpeech = null;
+function makeWebSpeech(){
+  const SR = self.SpeechRecognition || self.webkitSpeechRecognition;
+  if (!SR) return null;
+  const ctl = { rec: null, wanted: false, locale: "en-US", finals: [],
+    start(loc){ this.wanted = true; this.locale = loc; this.listen(); },
+    restart(loc){ this.locale = loc; if (this.rec) try { this.rec.stop(); } catch (e){} },
+    stop(){ this.wanted = false; if (this.rec) try { this.rec.stop(); } catch (e){} },
+    listen(){
+      const r = new SR(); r.lang = this.locale; r.continuous = true; r.interimResults = true; this.rec = r;
+      const seen = [];
+      r.onresult = ev => {
+        for (let i = ev.resultIndex; i < ev.results.length; i++){
+          const res = ev.results[i]; const t = res[0].transcript.trim();
+          if (!t || seen[i]) continue;
+          if (res.isFinal){ seen[i] = true; onFinal(t); } else onHeard(t, -1, false);
+        }
+      };
+      r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed"){ this.wanted = false; onProblem("El navegador no deja usar el micrófono. Permítelo en el icono del candado de la barra de direcciones.", true); } };
+      r.onend = () => { if (current) onFinal(current.src); if (this.wanted) setTimeout(() => this.wanted && this.listen(), 200); };
+      try { r.start(); } catch (e){}
+    }
+  };
+  return ctl;
+}
+
+/* =====================================================================
+   Start / stop
+   ===================================================================== */
+async function startListening(){
+  if (listening) return;
+  dictStop();
+  prepareTranslators();
+  activeDeepgram = usingDeepgram();
+  if (!activeDeepgram && cfg.source !== "mic"){
+    showBanner("Para escuchar el audio del PC necesitas Deepgram: añade tu clave en Ajustes. Sin ella solo funciona el micrófono.", "mic");
+    return;
+  }
+  try {
+    if (activeDeepgram){
+      await audioIn.open(cfg.source);
+      detectedLang = null; detectedTag = null;
+      micGain = 1; peakWin = -90; peakCount = 0; levelHist.length = 0; confHist.length = 0; weakSince = 0; confLabel = "";
+      audioIn.onChunk = buf => { processChunk(buf); deepgram.send(buf); };
+      deepgram.start();
+    } else {
+      webSpeech = webSpeech || makeWebSpeech();
+      if (!webSpeech){ showBanner("Este navegador no reconoce voz por sí solo. Usa Google Chrome o añade una clave de Deepgram en Ajustes.", "mic"); return; }
+      webSpeech.start(selected().locale);
+      if (location.protocol === "file:") showBanner("Estás usando el reconocimiento de Chrome: con la app abierta como archivo, Chrome pedirá permiso del micrófono muy a menudo. Añade tu clave de Deepgram en Ajustes para evitarlo.", "info");
+    }
+  } catch (e){
+    audioIn.close();
+    const n = e && e.name;
+    if (e && e.message === "noaudio") showBanner("No se compartió audio. Al elegir la pestaña o la pantalla, marca la casilla «Compartir audio».", "mic");
+    else if (n === "NotAllowedError"){
+      if (cfg.source === "mic") showBanner("El micrófono está bloqueado. Permítelo en el icono del candado de la barra de direcciones y vuelve a pulsar.", "mic");
+      else if (/system/i.test(e.message || "")) showBanner("Este PC no deja compartir la pantalla ni su audio (suele ser una norma de la empresa o de Windows). Usa «Micrófono» con el sonido de la reunión por los altavoces.", "mic");
+      else showBanner("No se compartió el audio del PC. Al pulsar el micrófono, elige «Pantalla completa» (Teams o Zoom) o la pestaña de la reunión (Meet), marca «Compartir audio» y pulsa «Compartir».", "mic");
+    }
+    else if (n === "NotFoundError") showBanner("No se encuentra ningún micrófono en el PC.", "mic");
+    else if (n === "NotReadableError") showBanner("Otra aplicación está usando el micrófono. Ciérrala y vuelve a pulsar.", "mic");
+    else showBanner("No se pudo empezar a escuchar: " + (e && e.message || e), "mic");
+    return;
+  }
+  listening = true; hideBannerIf("mic"); renderStatus();
+}
+function stopListening(){
+  if (!listening) return;
+  listening = false;
+  if (activeDeepgram) deepgram.stop(); else if (webSpeech) webSpeech.stop();
+  audioIn.close();
+  try { speechSynthesis.cancel(); } catch (e){}
+  renderStatus();
+  setTimeout(() => { if (!listening) updateNotes(false); }, 3500);
+}
+function onProblem(msg, fatal){ showBanner(msg, fatal ? "mic" : "net"); if (fatal && listening) stopListening(); }
+function onStreamLost(why){
+  if (!listening) return;
+  why = why || "Se perdió la conexión con Deepgram.";
+  audioIn.close(); activeDeepgram = false;
+  if (cfg.source === "mic"){
+    webSpeech = webSpeech || makeWebSpeech();
+    if (webSpeech){ webSpeech.start(selected().locale); showBanner(why + " Sigo con el reconocimiento de Chrome (solo micrófono).", "mic"); renderStatus(); return; }
+  }
+  listening = false; renderStatus();
+  showBanner(why + " Vuelve a pulsar el micrófono cuando lo hayas resuelto.", "mic");
+}
+
+/* =====================================================================
+   Class support: sound level, recap, live line, notes, alerts
+   ===================================================================== */
+let micGain = 1, peakWin = -90, peakCount = 0, weakSince = 0, lastConfWarn = 0, confLabel = "";
+const levelHist = [], confHist = [];
+let nowText = "", notesText = "", wordsSinceNow = 0, wordsSinceNotes = 0, nowBusy = false, notesBusy = false;
+const alerts = [];
+const tagWords = new Map(); let teacherTag = null;
+const ALERT_RULES = [
+  ["Examen", /\b(exams?|midterms?|final exam|quiz(zes)?|(the|a|next|this) test|exámenes|examen|parcial(es)?)\b/i],
+  ["Entrega o tarea", /\b(deadline|due (on|by|next|this|tomorrow|monday|tuesday|wednesday|thursday|friday)|homework|assignments?|essays?|submit|hand (it )?in|turn (it )?in|entregas?|entregar|deberes|fecha límite|tareas? para)\b/i],
+  ["Importante", /(this is important|very important|pay attention|don't forget|do not forget|remember to|will be on the (exam|test)|make sure (you|to)|es importante|muy importante|no olvid|recordad|tened en cuenta|entra en el examen)/i]
+];
+
+/** Level meter and, in classroom mode, gain for a distant voice (up to x4, on top of Chrome's own). */
+function processChunk(buf){
+  const a = new Int16Array(buf);
+  let sum = 0; for (let i = 0; i < a.length; i++) sum += a[i] * a[i];
+  const rms = Math.sqrt(sum / a.length);
+  const db = rms < 1 ? -90 : 20 * Math.log10(rms / 32768);
+  peakWin = Math.max(peakWin, db);
+  if (++peakCount >= 4){ const p = peakWin; peakWin = -90; peakCount = 0; onLevel(p); }
+  if (cfg.classMode && db > -55){ const target = Math.min(4, Math.max(1, Math.pow(10, (-22 - db) / 20))); micGain += (target - micGain) * 0.05; }
+  if (cfg.classMode && micGain > 1.01) for (let i = 0; i < a.length; i++){ const v = a[i] * micGain; a[i] = v > 32767 ? 32767 : v < -32768 ? -32768 : v; }
+}
+function onLevel(db){
+  if (!listening) return;
+  levelHist.push(db); while (levelHist.length > 15) levelHist.shift();
+  const peak = Math.max(...levelHist);
+  const fill = $("levelFill");
+  fill.style.width = Math.round(Math.max(0, Math.min(1, (db + 60) / 50)) * 100) + "%";
+  const [txt, col] = peak > -32 ? ["Sonido: bien", "var(--ok)"] : peak > -45 ? ["Sonido: débil", "var(--warn)"] : ["Sonido: muy débil", "var(--tally)"];
+  fill.style.background = col;
+  $("levelText").textContent = confLabel ? `${txt} · ${confLabel}` : txt;
+  const now = performance.now();
+  if (peak < -46){
+    if (!weakSince) weakSince = now;
+    if (now - weakSince > 8000 && bannerKind !== "level" && bannerKind !== "alert")
+      showBanner("Me llega muy poco sonido. Acerca el micrófono a quien habla" + (cfg.classMode ? "." : ", y activa el modo aula en Ajustes."), "level");
+  } else { weakSince = 0; if (peak > -40) hideBannerIf("level"); }
+}
+function onConfidence(avg){
+  confHist.push(avg); while (confHist.length > 6) confHist.shift();
+  const mean = confHist.reduce((a, b) => a + b, 0) / confHist.length;
+  confLabel = mean >= 0.8 ? "se entiende bien" : mean >= 0.6 ? "se entiende regular" : "se entiende mal";
+  const now = performance.now();
+  if (confHist.length >= 4 && mean < 0.6 && now - lastConfWarn > 120000 && bannerKind !== "alert"){
+    lastConfWarn = now;
+    showBanner("Se entiende mal lo que llega: puede haber ruido o estar lejos. Acércate a quien habla" + (cfg.classMode ? "." : " o activa el modo aula en Ajustes."), "level");
+  }
+}
+function afterPhrase(seg){
+  const n = words(seg.src).length;
+  if (activeDeepgram && seg.tag != null && cfg.classMode){
+    tagWords.set(seg.tag, (tagWords.get(seg.tag) || 0) + n);
+    let lead = null, leadN = 0; for (const [t, c] of tagWords) if (c > leadN){ lead = t; leadN = c; }
+    const curN = teacherTag == null ? 0 : (tagWords.get(teacherTag) || 0);
+    if (lead != null && lead !== teacherTag && leadN >= 40 && leadN > curN * 1.5) teacherTag = lead;
+  }
+  checkAlerts(seg);
+  wordsSinceNow += n; wordsSinceNotes += n;
+  if (wordsSinceNow >= 170) updateNow();
+  if (wordsSinceNotes >= 450) updateNotes(false);
+}
+const spanishName = () => cfg.spanishOut === "es-ES" ? "Spanish from Spain" : "Latin American Spanish";
+const spanishVoice = () => cfg.spanishOut === "es-ES" ? "es-ES" : "es-US";
+function recentSource(seconds, maxWords){
+  const since = Date.now() - seconds * 1000;
+  let list = segments.filter(s => s.src.trim() && (s.startedAt >= since || !s.isFinal));
+  if (!list.length) list = segments.filter(s => s.src.trim()).slice(-3);
+  const text = list.map(s => `${s.speaker.name}: ${s.src}`).join("\n");
+  const w = text.split(/\s+/);
+  return w.length > maxWords ? w.slice(-maxWords).join(" ") : text;
+}
+async function openRecap(){
+  const text = recentSource(75, 260);
+  if (!text.trim()){ showBanner("Todavía no hay nada que explicar.", "info"); return; }
+  if (!claudeOn()){
+    const last = segments.filter(s => s.src.trim()).slice(-4).map(s => `${s.speaker.name}: ${improvedText(s) || s.src}`).join("\n\n");
+    openDialog(`<h3>Lo último (sin Claude)</h3><div class="answer">${esc(last)}</div><div class="actions"><button class="btn primary" data-close>Cerrar</button></div>`);
+    return;
+  }
+  openDialog(`<h3>¿Qué ha dicho?</h3><div class="answer" id="rcBox" style="font-size:1.15rem">Preparando la explicación…</div><div class="actions"><button class="btn" id="rcListen">Escuchar</button><button class="btn primary" data-close>Entendido</button></div>`);
+  try {
+    const ask = `This is what was said in the last minute of a live ${cfg.topic ? "class about " + cfg.topic : "class"} (automatic speech recognition, it may contain errors):\n\n${text}\n\nThe student got lost. Explain in simple ${spanishName()}, in 2 to 4 short sentences, what has just been explained. If a technical term appears, explain it briefly. No introduction, no markdown.`;
+    const r = await claude(FAST_MODEL, "You help a Spanish-speaking student follow a class taught in a language other than Spanish.", [{ type: "text", text: ask }], 350, 25000);
+    const box = $("rcBox"); if (box){ box.textContent = r; $("rcListen").onclick = () => say(r, spanishVoice(), false); }
+    if (cfg.outputMode === 1) say(r, spanishVoice(), false);
+  } catch (e){ const box = $("rcBox"); if (box) box.textContent = claudeMessage(e); }
+}
+function renderNow(){
+  const bar = $("nowBar");
+  if (!nowText && !alerts.length){ bar.hidden = true; return; }
+  bar.innerHTML = (nowText ? `<b>Ahora:</b> ${esc(nowText)}` : "Apuntes y avisos") + (alerts.length ? `   <b>⚑ ${alerts.length}</b>` : "");
+  bar.hidden = false;
+}
+async function updateNow(){
+  if (nowBusy || !claudeOn()) return;
+  nowBusy = true; wordsSinceNow = 0;
+  try {
+    const ask = (nowText ? `Previous line: ${nowText}\n\n` : "") + `Last minutes of the class${cfg.topic ? " about " + cfg.topic : ""}:\n${recentSource(180, 420)}\n\nIn ONE line in Spanish of at most 16 words, say what is being explained right now. Start directly with the content, no introduction, no quotes.`;
+    const line = cleanOut(await claude(FAST_MODEL, "You write very short live captions about what a class is covering.", [{ type: "text", text: ask }], 80, 20000)).split("\n")[0].trim();
+    if (line){ nowText = line; renderNow(); }
+  } catch (e){}
+  nowBusy = false;
+}
+async function updateNotes(force){
+  if (notesBusy) return;
+  if (!claudeOn()){ if (force) showBanner("Los apuntes necesitan Claude activado.", "info"); return; }
+  const pending = segments.filter(s => s.isFinal && !s.inNotes && s.src.trim());
+  if (!pending.length){ if (force) showBanner("No hay nada nuevo para los apuntes.", "info"); return; }
+  notesBusy = true; wordsSinceNotes = 0; pending.forEach(s => s.inNotes = true);
+  const box = $("notesBody"); if (force && box) box.textContent = (notesText ? notesText + "\n\n" : "") + "Actualizando…";
+  const ask = `You keep live class notes in Spanish for a Spanish-speaking student attending a class taught in a language other than Spanish${cfg.topic ? " about " + cfg.topic : ""}.\nCURRENT NOTES:\n${notesText || "(empty)"}\n\nNEW PART OF THE CLASS (automatic transcript, it may contain recognition errors):\n` +
+    pending.map(s => `[${clock(s.startedAt)}] ${s.speaker.name}: ${s.src}`).join("\n") +
+    "\n\nReturn the full updated notes in Spanish, plain text, with these sections in this order (omit empty ones), each title on its own line:\nTEMAS: a short heading per topic, followed by '- ' bullet points with the key ideas, in order.\nDEFINICIONES: '- término (English term): short explanation'.\nFECHAS, EXÁMENES Y TAREAS: only what was actually said, with dates.\nPUNTOS A REPASAR: things that were unclear or worth reviewing.\nKeep it concise (under 1200 words), merge instead of repeating, never invent anything. No markdown other than '- '.";
+  try {
+    const notes = await claude(SMART_MODEL, "You are an excellent note-taker for university classes.", [{ type: "text", text: ask }], 3000, 120000);
+    if (notes) notesText = notes.trim();
+  } catch (e){ pending.forEach(s => s.inNotes = false); }
+  notesBusy = false;
+  const b2 = $("notesBody"); if (b2) b2.textContent = notesText || "Todavía no hay apuntes.";
+  renderNow();
+}
+function notesExport(){
+  let t = "";
+  if (nowText) t += "AHORA: " + nowText + "\n\n";
+  if (alerts.length) t += "AVISOS:\n" + alerts.map(a => "- " + a).join("\n") + "\n\n";
+  return t + notesText;
+}
+function openNotes(){
+  openDialog(`<h3>Apuntes de la clase</h3>
+    ${nowText ? `<h4>Ahora</h4><p style="margin:0">${esc(nowText)}</p>` : ""}
+    <h4>Avisos</h4><div class="notes${alerts.length ? "" : " help"}">${alerts.length ? esc(alerts.join("\n")) : "Ninguno por ahora."}</div>
+    <h4>Apuntes</h4><div class="answer notes" id="notesBody">${esc(notesText || (claudeOn() ? "Se irán creando solos cada pocos minutos de clase." : "Los apuntes necesitan Claude activado."))}</div>
+    <div class="actions"><button class="btn" id="nCopy">Copiar</button><button class="btn" id="nUpd">Actualizar ahora</button><button class="btn primary" data-close>Cerrar</button></div>`, () => {
+      $("nUpd").onclick = () => updateNotes(true);
+      $("nCopy").onclick = async () => { try { await navigator.clipboard.writeText(notesExport()); $("nCopy").textContent = "Copiado"; } catch (e){ download("apuntes.txt", new Blob([notesExport()], { type: "text/plain" })); } };
+    });
+}
+let titleTimer = 0;
+function checkAlerts(seg){
+  const kinds = ALERT_RULES.filter(([, re]) => re.test(seg.src)).map(([k]) => k);
+  if (!kinds.length) return;
+  seg.alert = kinds.join(", ");
+  const snippet = seg.src.slice(0, 140);
+  alerts.push(`${clock(seg.startedAt)} · ${seg.alert}: ${snippet}`);
+  renderSeg(seg); renderNow();
+  showBanner(`⚑ ${seg.alert}: ${snippet}`, "alert", "Ver apuntes", openNotes);
+  try { navigator.vibrate && navigator.vibrate([120, 90, 120]); } catch (e){}
+  if (document.hidden && !titleTimer){
+    let on = false;
+    titleTimer = setInterval(() => { on = !on; document.title = on ? "⚑ Aviso · Intérprete" : "Intérprete en vivo"; }, 1000);
+  }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && titleTimer){ clearInterval(titleTimer); titleTimer = 0; document.title = "Intérprete en vivo"; } });
+
+/* =====================================================================
+   Dialogs
+   ===================================================================== */
+const dlg = $("dlg");
+function openDialog(html, wire){
+  const body = $("dlgBody"); body.innerHTML = html;
+  body.querySelectorAll("[data-close]").forEach(b => b.onclick = closeDialog);
+  if (wire) wire(body);
+  if (!dlg.open) dlg.showModal();
+}
+function closeDialog(){ if (dlg.open) dlg.close(); }
+
+function editParticipant(existing){
+  const p = existing || { id: uid(), name: "", lang: "en", locale: "en-US", notes: "", isMe: false };
+  const accentOptions = lang => ACCENTS[lang].map(([c, n]) => `<option value="${c}" ${c === p.locale ? "selected" : ""}>${n}</option>`).join("");
+  openDialog(`
+    <h3>${existing ? "Editar persona" : "Añadir persona"}</h3>
+    <label>Nombre<input type="text" id="pName" value="${esc(p.name)}" placeholder="Por ejemplo: John, la profesora, cliente"></label>
+    <label>Idioma que habla<select id="pLang">${LANG_KEYS.map(k => `<option value="${k}" ${k === p.lang ? "selected" : ""}>${cap(LANGS[k].name)}</option>`).join("")}</select></label>
+    <label>Acento<select id="pAccent">${accentOptions(p.lang)}</select></label>
+    <label>Cómo habla (opcional)<textarea id="pNotes" placeholder="Por ejemplo: inglés con acento francés, habla muy rápido, usa muchas siglas">${esc(p.notes)}</textarea></label>
+    <p class="help">Estas notas ayudan a Claude a corregir palabras mal entendidas por el acento.</p>
+    <label class="row"><input type="checkbox" id="pMe" ${p.isMe ? "checked" : ""}>Soy yo</label>
+    <div class="actions">
+      ${existing && cfg.participants.length > 1 ? '<button class="btn danger" id="pDel">Eliminar</button>' : ""}
+      <button class="btn" data-close>Cancelar</button><button class="btn primary" id="pSave">Guardar</button>
+    </div>`, body => {
+      $("pLang").onchange = () => { $("pAccent").innerHTML = ACCENTS[$("pLang").value].map(([c, n]) => `<option value="${c}">${n}</option>`).join(""); };
+      $("pSave").onclick = () => {
+        const lang = $("pLang").value;
+        const upd = { id: p.id, name: $("pName").value.trim() || (lang === "en" ? "Ponente" : "Participante"), lang, locale: $("pAccent").value, notes: $("pNotes").value.trim(), isMe: $("pMe").checked };
+        let list = cfg.participants.map(x => upd.isMe ? { ...x, isMe: false } : x);
+        if (existing) list = list.map(x => x.id === p.id ? upd : x); else list.push(upd);
+        setCfg("participants", list);
+        if (!existing) setCfg("selectedId", upd.id);
+        onParticipantsChanged();
+        closeDialog(); renderChips(); renderStatus();
+      };
+      const del = $("pDel");
+      if (del) del.onclick = () => { setCfg("participants", cfg.participants.filter(x => x.id !== p.id)); if (cfg.selectedId === p.id) setCfg("selectedId", cfg.participants[0].id); onParticipantsChanged(); closeDialog(); renderChips(); renderStatus(); };
+    });
+}
+
+function openSession(){
+  const n = glossary.entries.length;
+  openDialog(`
+    <h3>Sesión</h3>
+    <label>Tema de la clase o reunión<input type="text" id="sTopic" value="${esc(cfg.topic)}" placeholder="Por ejemplo: auditoría financiera, biología celular, ventas"></label>
+    <h4>Documento de apoyo</h4>
+    <p class="help" id="sDoc">${cfg.docName ? esc(cfg.docName) + (n ? ` (${n} términos en el glosario)` : "") : "Ninguno"}</p>
+    <div class="actions" style="justify-content:flex-start;margin-top:0">
+      <button class="btn" id="sPick">${cfg.docName ? "Cambiar documento" : "Añadir documento"}</button>
+      ${cfg.docName ? '<button class="btn" id="sRemove">Quitar documento</button>' : ""}
+      <input type="file" id="sFile" accept=".pdf,.docx,.txt,.md,.markdown" hidden>
+    </div>
+    <p class="help">PDF, Word (.docx), Markdown o texto. Claude lo lee una vez y prepara un glosario; durante la sesión solo envía los términos que van apareciendo.</p>
+    <h4>Tu glosario</h4>
+    <textarea id="sOwn" placeholder="Una línea por término:&#10;revenue = ingresos&#10;board = consejo de administración">${esc(cfg.userGlossary)}</textarea>
+    <p class="help">Tus términos tienen prioridad y también ayudan a Deepgram a reconocerlos.</p>
+    <label>No traducir nunca<input type="text" id="sKeep" value="${esc(cfg.keepTerms)}" placeholder="Marcas, nombres, siglas… separados por comas"></label>
+    <div class="actions"><button class="btn" data-close>Cancelar</button><button class="btn primary" id="sSave">Guardar</button></div>`, body => {
+      $("sPick").onclick = () => { if (!claudeOn()){ $("sDoc").textContent = cfg.claudeKey ? "Activa Claude para preparar el glosario." : "Primero añade tu clave de Claude en Ajustes."; return; } $("sFile").click(); };
+      $("sFile").onchange = e => { const f = e.target.files[0]; if (f) importDocument(f, $("sTopic").value.trim()); };
+      const rm = $("sRemove"); if (rm) rm.onclick = () => { setCfg("docName", ""); setCfg("docBrief", ""); rebuildGlossary(); renderTopic(); $("sDoc").textContent = "Ninguno"; rm.remove(); };
+      $("sSave").onclick = () => { setCfg("topic", $("sTopic").value.trim()); setCfg("userGlossary", $("sOwn").value.trim()); setCfg("keepTerms", $("sKeep").value.trim()); rebuildGlossary(); renderTopic(); closeDialog(); };
+    });
+}
+let jszipPromise = null;
+function loadJSZip(){
+  if (self.JSZip) return Promise.resolve(self.JSZip);
+  if (!jszipPromise) jszipPromise = new Promise((ok, fail) => {
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    s.onload = () => ok(self.JSZip); s.onerror = () => { jszipPromise = null; fail(new Error("sin conexión")); }; document.head.appendChild(s);
+  });
+  return jszipPromise;
+}
+const fileBase64 = f => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = () => fail(r.error); r.readAsDataURL(f); });
+async function importDocument(file, topic){
+  const status = $("sDoc"); const say2 = m => { if (status) status.textContent = m; };
+  say2("Leyendo el documento y preparando el glosario… puede tardar un minuto."); showBanner("Preparando el glosario del documento…", "doc");
+  try {
+    const name = file.name, lower = name.toLowerCase(); const content = [];
+    if (lower.endsWith(".pdf")){
+      if (file.size > 15 * 1024 * 1024) throw new Error("el PDF pesa más de 15 MB; usa uno más pequeño o divídelo");
+      content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: await fileBase64(file) } });
+    } else if (lower.endsWith(".docx")){
+      const zip = await (await loadJSZip()).loadAsync(await file.arrayBuffer());
+      const xml = await zip.file("word/document.xml").async("string");
+      const text = xml.replace(/<\/w:p>/g, "\n").replace(/<w:tab\/>/g, " ").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+      content.push({ type: "text", text: `MATERIAL (${name}):\n` + text.slice(0, 150000) });
+    } else {
+      content.push({ type: "text", text: `MATERIAL (${name}):\n` + (await file.text()).slice(0, 150000) });
+    }
+    content.push({ type: "text", text: "Prepare a professional English<->Spanish conference interpreter for a live session" + (topic ? " about: " + topic : "") +
+      ". Using the attached material, write a compact interpreting brief in plain text with three parts, each starting with its label on its own line (SUMMARY:, GLOSSARY:, NAMES:):\nSUMMARY: 3-4 sentences on the subject.\nGLOSSARY: up to 120 key terms, acronyms, product names and set phrases, one per line as 'English = Español'. Prefer the terms used in the material.\nNAMES: people, organisations and places mentioned, one per line, with any usual translation.\nNo tables, no markdown, no commentary. Under 1500 words." });
+    const brief = await claude(SMART_MODEL, "You prepare concise, accurate briefs for conference interpreters.", content, 4000, 180000);
+    setCfg("docName", name); setCfg("docBrief", brief); rebuildGlossary(); renderTopic();
+    say2(`${name} (${glossary.entries.length} términos en el glosario)`); hideBannerIf("doc");
+  } catch (e){
+    const m = e instanceof ClaudeError ? claudeMessage(e) : "No se pudo leer el documento: " + (e.message || e) + ".";
+    say2(m); showBanner(m, "doc");
+  }
+}
+
+async function testClaudeKey(key){
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: FAST_MODEL, max_tokens: 1, messages: [{ role: "user", content: "ok" }] }) });
+    if (r.ok) return "Claude: la clave funciona y hay saldo.";
+    const data = await r.json().catch(() => ({}));
+    return "Claude: " + claudeMessage(new ClaudeError(r.status, (data.error && data.error.message) || ""));
+  } catch (e){ return "Claude: no se pudo comprobar (¿sin conexión?)."; }
+}
+async function testDeepgramKey(key){
+  const h = { Authorization: "Token " + key };
+  try {
+    const r = await fetch("https://api.deepgram.com/v1/auth/token", { headers: h });
+    if (r.status === 401 || r.status === 403) return "Deepgram: la clave no es válida. Revísala.";
+    if (r.status === 402) return "Deepgram: la cuenta se ha quedado sin saldo.";
+    if (!r.ok) return `Deepgram: respuesta inesperada (${r.status}).`;
+    let txt = "Deepgram: la clave es válida.";
+    try {
+      const p = await fetch("https://api.deepgram.com/v1/projects", { headers: h });
+      const proj = p.ok ? ((await p.json()).projects || [])[0] : null;
+      if (proj){
+        const b = await fetch(`https://api.deepgram.com/v1/projects/${proj.project_id}/balances`, { headers: h });
+        if (b.ok){ const tot = ((await b.json()).balances || []).reduce((a, x) => a + (+x.amount || 0), 0); txt += tot > 0 ? ` Saldo: ${tot.toFixed(2)} $.` : " Saldo: 0 $, recarga la cuenta."; }
+      }
+    } catch (e){}
+    return txt;
+  } catch (e){ return "Deepgram: el navegador no deja comprobarla desde aquí; se comprobará al empezar a escuchar."; }
+}
+async function fillMics(sel){
+  sel.innerHTML = ""; const def = el("option", null, "Predeterminado del sistema"); def.value = ""; sel.appendChild(def);
+  let devs = [];
+  try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === "audioinput" && x.deviceId && x.deviceId !== "default" && x.deviceId !== "communications"); } catch (e){}
+  devs.forEach((x, i) => { const o = el("option", null, x.label || "Micrófono " + (i + 1)); o.value = x.deviceId; sel.appendChild(o); });
+  if (cfg.micId && !devs.some(x => x.deviceId === cfg.micId)){ const o = el("option", null, "Micrófono guardado (no conectado ahora)"); o.value = cfg.micId; sel.appendChild(o); }
+  sel.value = cfg.micId || "";
+}
+function openSettings(){
+  const optVoices = (lang, cur) => `<option value="">Predeterminada</option>` + voicesFor(lang).map(v => `<option value="${esc(v.name)}" ${v.name === cur ? "selected" : ""}>${esc(v.name)}${v.localService ? " (instalada, más rápida)" : " (por internet)"}</option>`).join("");
+  const rateSel = [1, 1.2, 1.4].reduce((a, b) => Math.abs(b - cfg.rate) < Math.abs(a - cfg.rate) ? b : a);
+  const voiceLangs = ["es", ...new Set(cfg.participants.map(p => p.lang).filter(l => l !== "es"))];
+  const r = (name, val, cur, text) => `<label class="row"><input type="radio" name="${name}" value="${val}" ${String(val) === String(cur) ? "checked" : ""}>${text}</label>`;
+  openDialog(`
+    <h3>Ajustes</h3>
+    <h4>Reconocimiento de voz: Deepgram</h4>
+    <input type="password" id="kDg" value="${esc(cfg.deepgramKey)}" placeholder="Clave de Deepgram" autocomplete="off">
+    <label class="row"><input type="checkbox" id="kDgUse" ${cfg.useDeepgram ? "checked" : ""}>Usar Deepgram (escucha continua, sin cortes; necesario para el audio del PC)</label>
+    <label class="row"><input type="checkbox" id="kDiar" ${cfg.diarize ? "checked" : ""}>Detectar automáticamente quién habla</label>
+    <label class="row"><input type="checkbox" id="kAula" ${cfg.classMode ? "checked" : ""}>Modo aula: una voz principal lejana (el profesor), con más ganancia y menos ruido</label>
+    <label>Micrófono<select id="kMic"><option value="">Predeterminado del sistema</option></select></label>
+    <p class="help">Vale para la escucha con Deepgram. Si solo ves «Micrófono 1», empieza a escuchar una vez para que el navegador muestre los nombres.</p>
+    <h4>Traducción mejorada: Claude</h4>
+    <input type="password" id="kCl" value="${esc(cfg.claudeKey)}" placeholder="Clave de Claude (sk-ant-…)" autocomplete="off">
+    <label class="row"><input type="checkbox" id="kClUse" ${cfg.useClaude ? "checked" : ""}>Usar Claude (si lo desactivas, la clave se queda guardada)</label>
+    <div class="radios">${r("qual", "fast", cfg.expertQuality, "Rápida: llega antes")}${r("qual", "smart", cfg.expertQuality, "Más precisa: entiende mejor frases hechas y jerga, llega un poco más tarde")}</div>
+    <p class="help">Las claves se guardan solo en este navegador de este PC.</p>
+    <button class="btn" id="kKeys" type="button">Probar claves</button><p class="help" id="keysOut"></p>
+    <h4>Pantalla</h4>
+    <p class="help">Las ventanas se minimizan, se reabren y se redimensionan desde la pantalla principal (botón – de cada ventana, divisores y barra inferior).</p>
+    <label class="row"><input type="checkbox" id="kAwake" ${cfg.keepAwake ? "checked" : ""}>Mantener la pantalla encendida mientras escucha</label>
+    <div class="radios inline">${r("size", 0, cfg.textSize, "Texto normal")}${r("size", 1, cfg.textSize, "Grande")}${r("size", 2, cfg.textSize, "Muy grande")}</div>
+    <h4>Salida</h4>
+    <div class="radios">${r("out", 0, cfg.outputMode, "Solo texto")}${r("out", 1, cfg.outputMode, "Solo audio (pantalla mínima)")}${r("out", 2, cfg.outputMode, "Texto y audio")}</div>
+    <div class="radios">${r("vsrc", "fast", cfg.voiceSource, "Oír la simultánea: llega antes")}${r("vsrc", "precise", cfg.voiceSource, "Oír la mejorada: más precisa, un poco después")}</div>
+    <div class="radios inline">${r("rate", 1, rateSel, "Voz normal")}${r("rate", 1.2, rateSel, "Rápida")}${r("rate", 1.4, rateSel, "Muy rápida")}</div>
+    ${voiceLangs.map(l => `<label>Voz en ${LANGS[l].name}<select id="v_${l}">${optVoices(l, voiceFor(l))}</select></label>`).join("")}
+    <label class="row"><input type="checkbox" id="kHead" ${cfg.headphones ? "checked" : ""}>Uso auriculares (si no, el micrófono se pausa mientras habla el PC)</label>
+    <label class="row"><input type="checkbox" id="kMine" ${cfg.speakMine ? "checked" : ""}>Leer también la traducción de lo que digo yo</label>
+    <h4>Idioma</h4>
+    <div class="radios inline">${r("sp", "es-ES", cfg.spanishOut, "Español de España")}${r("sp", "es-419", cfg.spanishOut, "Español latinoamericano")}</div>
+    <div class="actions"><button class="btn" id="vTest">Probar voces</button><button class="btn" data-close>Cancelar</button><button class="btn primary" id="kSave">Guardar</button></div>`, body => {
+      const val = n => body.querySelector(`input[name="${n}"]:checked`).value;
+      fillMics($("kMic"));
+      $("kKeys").onclick = async () => {
+        const out = $("keysOut"), ck = $("kCl").value.trim(), dk = $("kDg").value.trim();
+        out.textContent = "Comprobando…";
+        const res = await Promise.all([ck ? testClaudeKey(ck) : "Claude: sin clave.", dk ? testDeepgramKey(dk) : "Deepgram: sin clave."]);
+        out.textContent = res.join("  ·  ");
+      };
+      $("vTest").onclick = () => {
+        const old = [cfg.voiceMap, cfg.rate];
+        cfg.voiceMap = { ...cfg.voiceMap }; for (const l of voiceLangs) cfg.voiceMap[l] = $("v_" + l).value; cfg.rate = +val("rate");
+        for (const l of voiceLangs) say(LANGS[l].test, localeFor(l), false);
+        [cfg.voiceMap, cfg.rate] = old;
+      };
+      $("kSave").onclick = () => {
+        const engineChanged = $("kDg").value.trim() !== cfg.deepgramKey || $("kDgUse").checked !== cfg.useDeepgram || $("kDiar").checked !== cfg.diarize || $("kAula").checked !== cfg.classMode || $("kMic").value !== cfg.micId;
+        if ($("kAula").checked !== cfg.classMode){ tagWords.clear(); teacherTag = null; }
+        setCfg("classMode", $("kAula").checked); setCfg("micId", $("kMic").value); setCfg("keepAwake", $("kAwake").checked);
+        setCfg("deepgramKey", $("kDg").value.trim()); setCfg("useDeepgram", $("kDgUse").checked); setCfg("diarize", $("kDiar").checked);
+        if ($("kCl").value.trim() !== cfg.claudeKey || $("kClUse").checked !== cfg.useClaude) expertBlocked = false;
+        setCfg("claudeKey", $("kCl").value.trim()); setCfg("useClaude", $("kClUse").checked);
+        setCfg("textSize", +val("size")); setCfg("outputMode", +val("out")); setCfg("expertQuality", val("qual"));
+        setCfg("voiceSource", val("vsrc")); setCfg("rate", +val("rate")); setCfg("voiceMap", Object.fromEntries([...Object.entries(cfg.voiceMap || {}), ...voiceLangs.map(l => [l, $("v_" + l).value])]));
+        setCfg("headphones", $("kHead").checked); setCfg("speakMine", $("kMine").checked); setCfg("spanishOut", val("sp"));
+        if (cfg.outputMode === 0) try { speechSynthesis.cancel(); } catch (e){}
+        closeDialog(); renderAll();
+        if (listening && engineChanged){ stopListening(); startListening(); }
+      };
+    });
+}
+
+let installEvt = null;
+const isStandalone = () => { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e){ return false; } };
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+window.addEventListener("appinstalled", () => { installEvt = null; showBanner("Intérprete instalado: ya lo tienes como una app más.", "info"); });
+async function installApp(){
+  if (installEvt){ const ev = installEvt; installEvt = null; closeDialog(); try { await ev.prompt(); } catch (e){} return; }
+  const web = /^https?:$/.test(location.protocol);
+  openDialog(`<h3>Instalar como app</h3>
+    ${web ? "" : `<p class="help"><b>Ahora la página está abierta como archivo.</b> Solo se puede instalar desde su dirección de internet (la de GitHub Pages).</p>`}
+    <p class="help"><b>PC (Chrome o Edge):</b> menú ⋮ → «Guardar y compartir» → «Instalar página como aplicación» (o el icono de instalar que aparece a la derecha de la barra de direcciones).</p>
+    <p class="help"><b>Móvil Android (Chrome):</b> menú ⋮ → «Instalar aplicación».</p>
+    <p class="help"><b>iPhone o iPad (Safari):</b> botón Compartir → «Añadir a pantalla de inicio».</p>
+    <p class="help">Se abre en su propia ventana, con su icono, y arranca aunque no haya conexión (para traducir sí hace falta internet).</p>
+    <div class="actions"><button class="btn primary" data-close>Entendido</button></div>`);
+}
+function openMore(){
+  openDialog(`<h3>Más</h3><div class="list">
+    <button id="mRecap">¿Qué ha dicho? (último minuto) · tecla Q</button>
+    <button id="mNotes">Apuntes y avisos de la clase · tecla A</button>
+    <button id="mProfiles">Perfiles de sesión</button>
+    <button id="mAsk">Preguntar sobre lo hablado</button>
+    <button id="mSummary">Resumen y exportar (Word / PDF / texto)</button>
+    <button id="mCopy">Copiar la transcripción</button>
+    <button id="mClear">Borrar la transcripción</button>
+    ${isStandalone() ? "" : `<button id="mInstall">Instalar como app (icono propio, sin barra del navegador)</button>`}
+    <button id="mHelp">Atajos de teclado y consejos</button>
+  </div><div class="actions"><button class="btn" data-close>Cerrar</button></div>`, () => {
+    if ($("mInstall")) $("mInstall").onclick = installApp;
+    $("mRecap").onclick = openRecap; $("mNotes").onclick = openNotes;
+    $("mProfiles").onclick = openProfiles; $("mAsk").onclick = openAsk; $("mSummary").onclick = openSummary;
+    $("mCopy").onclick = async () => { const t = transcriptText(); if (!t){ closeDialog(); showBanner("Todavía no hay nada transcrito.", "info"); return; } try { await navigator.clipboard.writeText(t); showBanner("Transcripción copiada al portapapeles.", "info"); } catch (e){ download("transcripcion.txt", new Blob([t], { type: "text/plain" })); } closeDialog(); };
+    $("mClear").onclick = () => openDialog(`<h3>¿Borrar la transcripción?</h3><p class="help">Se borra lo traducido en esta sesión. Tus perfiles y ajustes no se tocan.</p><div class="actions"><button class="btn" data-close>Cancelar</button><button class="btn primary" id="cYes">Borrar</button></div>`, () => { $("cYes").onclick = () => { clearTranscript(); closeDialog(); }; });
+    $("mHelp").onclick = () => openDialog(`<h3>Atajos y consejos</h3><p class="help"><b>F2</b> empieza o detiene · <b>R</b> repite la última frase · <b>1 a 9</b> eligen quién habla (o corrigen la voz detectada).</p>
+      <p class="help"><b>Clases o reuniones online</b> (Teams, Zoom, Meet, YouTube): elige «Audio del PC» y, al compartir, marca «Compartir audio». Si es una pestaña de Chrome, elige esa pestaña; si es una aplicación, elige «Pantalla completa».</p>
+      <p class="help"><b>Reuniones online en las que tú también hablas:</b> elige «Ambos» y usa auriculares, para que el micrófono no capte el sonido del PC dos veces.</p>
+      <p class="help"><b>Clases presenciales:</b> «Micrófono». Un micrófono de solapa o de mesa conectado al PC mejora mucho lo que se capta.</p>
+      <div class="actions"><button class="btn primary" data-close>Entendido</button></div>`);
+  });
+}
+
+function openProfiles(){
+  const list = cfg.profiles;
+  openDialog(`<h3>Perfiles de sesión</h3>
+    ${list.length ? `<div class="list">${list.map((p, i) => `<button data-i="${i}">${esc(p.name)}</button>`).join("")}</div>` : '<p class="help">Todavía no tienes perfiles. Guarda la sesión actual (tema, documento, glosario y participantes) para reutilizarla, por ejemplo «Finanzas, lunes».</p>'}
+    <label>Guardar la sesión actual como<input type="text" id="prName" value="${esc(cfg.topic)}" placeholder="Nombre del perfil"></label>
+    <div class="actions"><button class="btn" data-close>Cerrar</button><button class="btn primary" id="prSave">Guardar perfil</button></div>`, body => {
+      body.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
+        const p = list[+b.dataset.i];
+        openDialog(`<h3>${esc(p.name)}</h3><p class="help">Tema: ${esc(p.topic || "—")}<br>Documento: ${esc(p.docName || "—")}<br>Participantes: ${esc(p.participants.map(x => x.name).join(", "))}</p>
+          <div class="actions"><button class="btn danger" id="pfDel">Eliminar</button><button class="btn" data-close>Cancelar</button><button class="btn primary" id="pfLoad">Cargar</button></div>`, () => {
+            $("pfLoad").onclick = () => { for (const k of ["topic", "docName", "docBrief", "userGlossary", "keepTerms", "participants"]) setCfg(k, p[k]); setCfg("selectedId", p.participants[0].id); speakerMap.clear(); rebuildGlossary(); renderAll(); onParticipantsChanged(); closeDialog(); showBanner("Perfil cargado: " + p.name, "info"); };
+            $("pfDel").onclick = () => { setCfg("profiles", cfg.profiles.filter(x => x.name !== p.name)); closeDialog(); };
+          });
+      });
+      $("prSave").onclick = () => {
+        const name = $("prName").value.trim() || "Sesión";
+        const snap = { name, topic: cfg.topic, docName: cfg.docName, docBrief: cfg.docBrief, userGlossary: cfg.userGlossary, keepTerms: cfg.keepTerms, participants: cfg.participants };
+        setCfg("profiles", [...cfg.profiles.filter(x => x.name !== name), snap]); closeDialog(); showBanner("Perfil guardado: " + name, "info");
+      };
+    });
+}
+
+function transcriptText(){
+  return segments.filter(s => s.src.trim()).map(s => `[${clock(s.startedAt)}] ${s.speaker.name} (${s.speaker.lang.toUpperCase()}): ${s.src}\n    = ${improvedText(s)}`).join("\n");
+}
+function clearTranscript(){
+  forgetSession();
+  nowText = ""; notesText = ""; alerts.length = 0; wordsSinceNow = 0; wordsSinceNotes = 0; tagWords.clear(); teacherTag = null;
+  setTimeout(renderNow, 0);
+  segments.length = 0; current = null; draftChunks.length = 0; tailQueue.clear(); expertQueue.length = 0; history.length = 0;
+  for (const f of ["feedA", "feedB"]) while ($(f).children.length > 1) $(f).lastChild.remove();
+  $("cabinLine").textContent = "…"; renderEmpty();
+}
+/* =====================================================================
+   Session autosave and recovery (survives closing or reloading the tab)
+   ===================================================================== */
+const SESSION_KEY = "session", SESSION_MAX_AGE = 3 * 24 * 3600 * 1000;
+let saveTimer = 0;
+function snapshot(){
+  const segs = segments.filter(s => s.src.trim()).slice(-200).map(s => ({
+    speaker: { id: s.speaker.id, name: s.speaker.name, lang: s.speaker.lang, locale: s.speaker.locale, isMe: !!s.speaker.isMe },
+    partner: s.partner, startedAt: s.startedAt, src: s.src, alert: s.alert || "",
+    chunks: s.chunks.map(c => ({ src: c.src, draft: c.draft || null, expert: c.expertDone && c.expert ? c.expert : null, covered: !!c.covered }))
+  }));
+  return { savedAt: Date.now(), segs, nowText, notesText, alerts: alerts.slice(-50) };
+}
+function saveSession(){
+  clearTimeout(saveTimer); saveTimer = 0;
+  const snap = snapshot();
+  if (snap.segs.length) keep(SESSION_KEY, snap);
+}
+function scheduleSave(){ if (!saveTimer) saveTimer = setTimeout(saveSession, 1500); }
+function flushSession(){ if (segments.length) saveSession(); }
+function forgetSession(){ clearTimeout(saveTimer); saveTimer = 0; try { localStorage.removeItem(PREFIX + SESSION_KEY); } catch (e){} }
+function restoreSession(snap){
+  for (const o of snap.segs){
+    const sp = o.speaker;
+    if (!sp || !LANGS[sp.lang]) continue;
+    const seg = newSegment({ speaker: sp, partner: LANGS[o.partner] ? o.partner : (sp.lang !== "es" ? sp.lang : partnerLang()), startedAt: o.startedAt });
+    seg.src = o.src; seg.alert = o.alert || ""; seg.isFinal = true;
+    seg.chunks = (o.chunks || []).map(c => ({ src: c.src, isEnd: true, endIdx: 0, wantExpert: c.expert != null, createdAt: 0, draft: c.draft, draftFailed: !c.draft,
+      expert: c.expert, expertDone: c.expert != null, expertFailed: false, spoken: true, covered: !!c.covered }));
+    seg.committed = words(seg.src).length;
+    renderSeg(seg);
+  }
+  nowText = snap.nowText || ""; notesText = snap.notesText || ""; alerts.push(...(snap.alerts || []));
+  renderNow(); renderEmpty();
+}
+function offerRecovery(){
+  const snap = load(SESSION_KEY, null);
+  if (!snap || !Array.isArray(snap.segs) || !snap.segs.length) return;
+  if (!snap.savedAt || Date.now() - snap.savedAt > SESSION_MAX_AGE){ forgetSession(); return; }
+  const when = new Date(snap.savedAt).toLocaleString("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  openDialog(`<h3>Sesión anterior</h3><p class="help">Hay una sesión guardada del ${esc(when)} con ${snap.segs.length} ${snap.segs.length === 1 ? "frase" : "frases"}. ¿Quieres recuperarla?</p>
+    <div class="actions"><button class="btn" id="rsNo">Empezar de cero</button><button class="btn primary" id="rsYes">Recuperar</button></div>`, () => {
+      $("rsYes").onclick = () => { closeDialog(); restoreSession(snap); showBanner("Sesión recuperada.", "info"); };
+      $("rsNo").onclick = () => { forgetSession(); closeDialog(); };
+    });
+}
+function openAsk(){
+  if (!claudeOn()){ closeDialog(); showBanner(cfg.claudeKey ? "Activa Claude para hacer preguntas." : "Necesitas la clave de Claude (Ajustes).", "info"); return; }
+  if (!segments.length){ closeDialog(); showBanner("Todavía no hay nada transcrito.", "info"); return; }
+  openDialog(`<h3>Preguntar sobre lo hablado</h3><textarea id="qText" placeholder="Por ejemplo: ¿qué fecha dieron para el examen? ¿Qué dijo sobre el presupuesto?"></textarea>
+    <div class="answer" id="qAns" hidden></div>
+    <div class="actions"><button class="btn" data-close>Cerrar</button><button class="btn primary" id="qGo">Preguntar</button></div>`, () => {
+      $("qGo").onclick = async () => {
+        const q = $("qText").value.trim(); if (!q) return;
+        const box = $("qAns"); box.hidden = false; box.textContent = "Buscando la respuesta…";
+        try {
+          box.textContent = await claude(FAST_MODEL, "You help someone follow a class or meeting that is being interpreted live. Plain text, no markdown.",
+            [{ type: "text", text: "TRANSCRIPT OF THE SESSION SO FAR:\n" + transcriptText().slice(-300000) + "\n\nQUESTION: " + q + "\n\nAnswer in the language of the question, briefly, using only what was said. If it was not mentioned, say so. Mention the time and speaker when useful." }], 800, 60000);
+        } catch (e){ box.textContent = claudeMessage(e); }
+      };
+    });
+}
+function openSummary(){
+  if (!segments.length){ closeDialog(); showBanner("Todavía no hay nada transcrito.", "info"); return; }
+  const exportBtns = sum => `<button class="btn" id="xTxt">Guardar texto</button><button class="btn" id="xDocx">Guardar Word</button><button class="btn" id="xPdf">Guardar PDF</button>`;
+  const colsRow = `<label class="row"><input type="checkbox" id="xCols" ${cfg.exportCols ? "checked" : ""}>Original y traducción en dos columnas, con hora y persona (Word y PDF)</label>`;
+  const wire = sum => {
+    const cols = () => { const v = $("xCols").checked; setCfg("exportCols", v); return v; };
+    $("xTxt").onclick = () => exportTxt(sum); $("xDocx").onclick = () => exportDocx(sum, cols()); $("xPdf").onclick = () => exportPdf(sum, cols());
+  };
+  if (!claudeOn()){
+    openDialog(`<h3>Exportar la sesión</h3><p class="help">Transcripción bilingüe con horas y personas. El resumen necesita Claude activado y con clave.</p>${colsRow}<div class="actions"><button class="btn" data-close>Cerrar</button>${exportBtns(null)}</div>`, () => wire(null));
+    return;
+  }
+  openDialog(`<h3>Resumen de la sesión</h3><div class="answer" id="sumBox">Preparando el resumen… puede tardar hasta un minuto.</div>${colsRow}<div class="actions"><button class="btn" data-close>Cerrar</button>${exportBtns()}</div>`, async () => {
+    wire(null);
+    try {
+      const ask = `Below is the bilingual transcript of a live ${cfg.topic ? "session about " + cfg.topic : "class or meeting"}, produced by speech recognition and live interpretation (it may contain recognition errors).\nWrite in Spanish, in plain text without markdown symbols, these sections with their titles:\nRESUMEN: the main ideas in 5-10 sentences.\nPUNTOS CLAVE: the most important points, one per line starting with a dash.\nACUERDOS Y DECISIONES: one per line starting with a dash, or 'Ninguno'.\nTAREAS: one per line starting with a dash, with who and when if it was said, or 'Ninguna'.\nTÉRMINOS: key technical terms that came up, as 'English = Español'.\n\nTRANSCRIPT:\n` + transcriptText().slice(-400000);
+      const sum = await claude(SMART_MODEL, "You summarise classes and meetings accurately and concisely, without inventing anything that was not said.", [{ type: "text", text: ask }], 3000, 180000);
+      $("sumBox").textContent = sum; wire(sum);
+    } catch (e){ $("sumBox").textContent = claudeMessage(e) + " Puedes exportar la transcripción sin resumen."; }
+  });
+}
+function exportRows(){ return segments.filter(s => s.src.trim()).map(s => ({ time: clock(s.startedAt), who: s.speaker.name, tr: improvedText(s) || "—", src: s.src })); }
+function exportBlocks(sum, cols){
+  const first = segments.length ? segments[0].startedAt : Date.now();
+  const b = [["title", cfg.topic || "Interpretación de la sesión"],
+    ["meta", new Date(first).toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" })],
+    ["meta", "Participantes: " + cfg.participants.map(p => `${p.name} (${langName(p.lang)}, ${accentLabel(p.locale)})`).join(", ")]];
+  if (sum) for (const line of sum.split("\n")){ const t = line.trim(); if (!t) continue; b.push([t.endsWith(":") && t === t.toUpperCase() ? "heading" : "body", t]); }
+  if (alerts.length){ b.push(["heading", "Avisos"]); alerts.forEach(a => b.push(["body", a])); }
+  if (notesText) for (const line of ["APUNTES:", ...notesText.split("\n")]){ const t = line.trim(); if (!t) continue; b.push([t.endsWith(":") && t === t.toUpperCase() ? "heading" : "body", t]); }
+  b.push(["heading", "Transcripción bilingüe"]);
+  if (!cols) for (const r of exportRows()) b.push(["speaker", `${r.time}  ${r.who}`], ["body", r.tr], ["source", r.src]);
+  return b;
+}
+/** Word table: time and person | original | translation. */
+function docxTable(x){
+  const W = [1500, 4069, 4069], bd = k => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="D6DCE2"/>`;
+  const cell = (w, text, o) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.head ? '<w:shd w:val="clear" w:color="auto" w:fill="EEF1F4"/>' : ""}</w:tcPr>` +
+    text.split("\n").map(line => `<w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr>${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}<w:color w:val="${o.col}"/><w:sz w:val="${o.sz}"/></w:rPr><w:t xml:space="preserve">${x(line)}</w:t></w:r></w:p>`).join("") + "</w:tc>";
+  const row = (cells, head) => `<w:tr>${head ? "<w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>" : "<w:trPr><w:cantSplit/></w:trPr>"}${cells.join("")}</w:tr>`;
+  let t = `<w:tbl><w:tblPr><w:tblW w:w="9638" w:type="dxa"/><w:tblBorders>${bd("top")}${bd("bottom")}${bd("insideH")}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${W.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>`;
+  t += row([cell(W[0], "Hora y persona", { head: 1, b: 1, col: "5B6874", sz: 19 }), cell(W[1], "Original", { head: 1, b: 1, col: "5B6874", sz: 19 }), cell(W[2], "Traducción", { head: 1, b: 1, col: "5B6874", sz: 19 })], true);
+  for (const r of exportRows()) t += row([cell(W[0], `${r.time}\n${r.who}`, { col: "5B6874", sz: 18 }), cell(W[1], r.src, { i: 1, col: "5B6874", sz: 20 }), cell(W[2], r.tr, { col: "16202A", sz: 22 })], false);
+  return t + "</w:tbl>";
+}
+function pdfTable(){
+  return `<table><thead><tr><th>Hora y persona</th><th>Original</th><th>Traducción</th></tr></thead><tbody>` +
+    exportRows().map(r => `<tr><td class="s">${esc(r.time)}<br><b>${esc(r.who)}</b></td><td class="o">${esc(r.src)}</td><td class="t">${esc(r.tr)}</td></tr>`).join("") + "</tbody></table>";
+}
+function exportTxt(sum){
+  const lines = [];
+  for (const [k, t] of exportBlocks(sum, false)){
+    if (k === "heading" || k === "speaker") lines.push("", t);
+    else if (k === "source") lines.push("   (original) " + t);
+    else lines.push(t);
+  }
+  download(`Interpretacion_${stamp()}.txt`, new Blob(["﻿" + lines.join("\n").trim() + "\n"], { type: "text/plain;charset=utf-8" }));
+}
+function download(name, blob){ const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+async function exportDocx(sum, cols){
+  const style = { title: [36, 1, 0, "16202A", 120], heading: [26, 1, 0, "CF2F27", 80], meta: [20, 0, 1, "5B6874", 120], speaker: [19, 1, 0, "5B6874", 20], body: [24, 0, 0, "16202A", 40], source: [20, 0, 1, "5B6874", 200] };
+  const x = s => s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  let body = "";
+  for (const [k, t] of exportBlocks(sum, cols)){ const [sz, b, i, col, after] = style[k];
+    for (const line of t.split("\n")) body += `<w:p><w:pPr><w:spacing w:after="${after}"/></w:pPr><w:r><w:rPr>${b ? "<w:b/>" : ""}${i ? "<w:i/>" : ""}<w:color w:val="${col}"/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${x(line)}</w:t></w:r></w:p>`; }
+  if (cols) body += docxTable(x) + "<w:p/>";
+  try {
+    const JSZip = await loadJSZip(); const zip = new JSZip();
+    zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    zip.file("word/document.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>');
+    download(`Interpretacion_${stamp()}.docx`, await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+  } catch (e){ showBanner("No se pudo crear el Word (hace falta internet la primera vez).", "info"); }
+}
+function exportPdf(sum, cols){
+  const css = { title: "font-size:20pt;font-weight:700;margin:0 0 6pt", heading: "font-size:13pt;font-weight:700;color:#CF2F27;margin:14pt 0 4pt", meta: "font-size:10pt;color:#5B6874;font-style:italic;margin:0 0 6pt", speaker: "font-size:9.5pt;font-weight:700;color:#5B6874;margin:10pt 0 1pt", body: "font-size:12pt;margin:0 0 2pt", source: "font-size:10pt;color:#5B6874;font-style:italic;margin:0 0 6pt" };
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Interpretacion_${stamp()}</title><style>@page{margin:18mm}body{font-family:"Segoe UI",Arial,sans-serif;color:#16202A;line-height:1.4}table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border-bottom:1px solid #D6DCE2;padding:5pt 6pt;vertical-align:top;text-align:left}th{background:#EEF1F4;color:#5B6874;font-size:9.5pt}td.s{width:15%;color:#5B6874;font-size:9pt}td.o{width:42%;color:#5B6874;font-style:italic;font-size:10pt}td.t{font-size:11.5pt}</style></head><body>` +
+    exportBlocks(sum, cols).map(([k, t]) => `<p style="${css[k]}">${esc(t).replace(/\n/g, "<br>")}</p>`).join("") + (cols ? pdfTable() : "") + "</body></html>";
+  const f = document.createElement("iframe"); f.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0"; document.body.appendChild(f);
+  f.onload = () => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 60000); };
+  f.srcdoc = html;
+  showBanner("En la ventana de impresión, elige «Guardar como PDF».", "info");
+}
+
+/* =====================================================================
+   Controls and keyboard
+   ===================================================================== */
+$("mic").onclick = () => listening ? stopListening() : startListening();
+$("btnSession").onclick = openSession; $("btnSettings").onclick = openSettings; $("btnMore").onclick = openMore;
+$("btnClaude").onclick = toggleClaude; $("btnRepeat").onclick = repeatLast;
+$("btnRecap").onclick = openRecap; $("nowBar").onclick = openNotes;
+document.querySelectorAll("button[data-out]").forEach(b => b.onclick = () => {
+  setCfg("outputMode", +b.dataset.out);
+  if (cfg.outputMode === 0) try { speechSynthesis.cancel(); } catch (e){}
+  renderAll();
+});
+document.querySelectorAll("button[data-src]").forEach(b => b.onclick = () => {
+  if (b.dataset.src === cfg.source) return;
+  setCfg("source", b.dataset.src); renderChips(); renderStatus();
+  if (listening){ stopListening(); startListening(); }
+});
+document.addEventListener("keydown", e => {
+  if (dlg.open || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName)) return;
+  if (e.key === "F2"){ e.preventDefault(); listening ? stopListening() : startListening(); }
+  else if (e.key === "r" || e.key === "R") repeatLast();
+  else if (e.key === "q" || e.key === "Q") openRecap();
+  else if (e.key === "a" || e.key === "A") openNotes();
+  else if (/^[1-9]$/.test(e.key)){ const p = cfg.participants[+e.key - 1]; if (p) selectSpeaker(p); }
+});
+window.addEventListener("beforeunload", () => { flushSession(); if (listening) stopListening(); });
+window.addEventListener("pagehide", flushSession);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSession(); });
+
+/* =====================================================================
+   Windows: resize, minimize, reopen
+   ===================================================================== */
+const WIN = ["A", "B", "C"];
+const WIN_NAME = { A: "Simultánea", B: "Mejorada", C: "Escribir y traducir" };
+const saveWin = () => keep("win", cfg.win);
+const narrow = () => { try { return window.matchMedia("(max-width: 860px)").matches; } catch (e){ return false; } };
+function layoutPanes(){
+  const box = $("panes");
+  box.querySelectorAll(".split").forEach(s => s.remove());
+  const col = cfg.win.dir === "col" || narrow();
+  box.classList.toggle("col", col);
+  let prev = null, shown = 0;
+  for (const k of WIN){
+    const pane = $("pane" + k), w = cfg.win[k];
+    pane.hidden = w.min;
+    if (w.min) continue;
+    shown++;
+    pane.style.flex = `${w.grow || 1} 1 0px`;
+    if (prev) box.insertBefore(makeSplit(prev, k, col), pane);
+    prev = k;
+  }
+  $("allMin").hidden = shown > 0;
+  const chips = $("dockChips"); chips.innerHTML = "";
+  for (const k of WIN) if (cfg.win[k].min){
+    const b = el("button", "pill small", "▢ " + WIN_NAME[k]);
+    b.title = "Volver a abrir la ventana " + WIN_NAME[k];
+    b.onclick = () => setMin(k, false);
+    chips.appendChild(b);
+  }
+  $("btnDir").hidden = narrow();
+  $("btnDir").textContent = cfg.win.dir === "col" ? "Disposición: una sobre otra" : "Disposición: lado a lado";
+}
+function setMin(k, min){
+  cfg.win[k].min = min; saveWin(); layoutPanes();
+  if (!min && k === "C") $("twIn").focus();
+}
+function makeSplit(a, b, col){
+  const sp = el("div", "split");
+  sp.dataset.a = a; sp.dataset.b = b; sp.tabIndex = 0;
+  sp.setAttribute("role", "separator"); sp.setAttribute("aria-orientation", col ? "horizontal" : "vertical");
+  sp.setAttribute("aria-label", `Cambiar el tamaño entre ${WIN_NAME[a]} y ${WIN_NAME[b]}`);
+  sp.title = "Arrastra para cambiar el tamaño. Doble clic para igualar.";
+  sp.addEventListener("pointerdown", e => startDrag(e, sp, a, b, col));
+  sp.addEventListener("dblclick", () => { cfg.win[a].grow = 1; cfg.win[b].grow = 1; saveWin(); layoutPanes(); });
+  sp.addEventListener("keydown", e => {
+    const dec = col ? "ArrowUp" : "ArrowLeft", inc = col ? "ArrowDown" : "ArrowRight";
+    if (e.key !== dec && e.key !== inc) return;
+    e.preventDefault();
+    const step = e.key === inc ? 0.15 : -0.15;
+    cfg.win[a].grow = Math.max(0.25, (cfg.win[a].grow || 1) + step);
+    cfg.win[b].grow = Math.max(0.25, (cfg.win[b].grow || 1) - step);
+    saveWin(); layoutPanes();
+    const again = $("panes").querySelector(`.split[data-a="${a}"][data-b="${b}"]`); if (again) again.focus();
+  });
+  return sp;
+}
+function startDrag(e, sp, a, b, col){
+  e.preventDefault();
+  const size = k => { const r = $("pane" + k).getBoundingClientRect(); return col ? r.height : r.width; };
+  const vis = WIN.filter(k => !cfg.win[k].min);
+  const px = Object.fromEntries(vis.map(k => [k, size(k)])); // read every size first, then write
+  for (const k of vis) $("pane" + k).style.flex = `${px[k]} 1 0px`; // from here on the weights are pixels
+  const pa = $("pane" + a), pb = $("pane" + b), sa = px[a], sb = px[b], from = col ? e.clientY : e.clientX;
+  const MIN = col ? 150 : 180, lo = Math.min(0, MIN - sa), hi = Math.max(0, sb - MIN);
+  try { sp.setPointerCapture(e.pointerId); } catch (x){}
+  sp.classList.add("drag");
+  const move = ev => {
+    const delta = Math.max(lo, Math.min(hi, (col ? ev.clientY : ev.clientX) - from));
+    pa.style.flex = `${sa + delta} 1 0px`; pb.style.flex = `${sb - delta} 1 0px`;
+  };
+  const up = () => {
+    sp.removeEventListener("pointermove", move); sp.removeEventListener("pointerup", up); sp.removeEventListener("pointercancel", up);
+    sp.classList.remove("drag");
+    const sizes = vis.map(size), total = sizes.reduce((x, y) => x + y, 0) || 1;
+    vis.forEach((k, i) => { cfg.win[k].grow = +(sizes[i] / total * vis.length).toFixed(4) || 1; });
+    saveWin(); layoutPanes();
+  };
+  sp.addEventListener("pointermove", move); sp.addEventListener("pointerup", up); sp.addEventListener("pointercancel", up);
+}
+document.querySelectorAll("[data-min]").forEach(b => b.onclick = () => setMin(b.dataset.min, true));
+$("btnDir").onclick = () => { cfg.win.dir = cfg.win.dir === "col" ? "row" : "col"; saveWin(); layoutPanes(); };
+$("btnResetWin").onclick = () => { for (const k of WIN) cfg.win[k].grow = 1; saveWin(); layoutPanes(); };
+try { window.matchMedia("(max-width: 860px)").addEventListener("change", layoutPanes); } catch (e){}
+
+/* =====================================================================
+   Written translation window: type in one language, read it in another
+   ===================================================================== */
+const tw = { rid: 0, timer: 0, out: "" };
+function renderTwLangs(){
+  const opts = LANG_KEYS.map(l => `<option value="${l}">${cap(LANGS[l].name)}</option>`).join("");
+  $("twFrom").innerHTML = opts; $("twTo").innerHTML = opts;
+  $("twFrom").value = cfg.twFrom; $("twTo").value = cfg.twTo;
+}
+function setTwOut(t){ tw.out = t; $("twOut").textContent = t; schedulePops(); }
+function twSystem(from, to, text){
+  let s = `You are a professional translator. Translate the user's message from ${LANGS[from].english} into ${targetName(to)}. It is a message that a person typed: it may have typos, missing punctuation or informal writing, which you silently fix. Keep the meaning, the tone, the register and the line breaks. ` +
+    (cfg.topic ? `Context: ${cfg.topic}. ` : "") + IDIOM_RULES + " Reply with the translation only: no quotes, labels, notes or alternatives.";
+  if (glossary.keep.length) s += "\nNever translate these names or brands, keep them exactly as written: " + glossary.keep.join(", ");
+  const terms = glossary.relevant(text);
+  if (terms.length) s += "\nGlossary terms that may apply:\n" + terms.join("\n");
+  return s;
+}
+function twRun(now){
+  clearTimeout(tw.timer);
+  const text = $("twIn").value.trim();
+  if (!text){ tw.rid++; setTwOut(""); $("twState").textContent = ""; return; }
+  tw.timer = setTimeout(() => twTranslate(text), now ? 0 : 700);
+}
+async function twTranslate(text){
+  const rid = ++tw.rid, from = cfg.twFrom, to = cfg.twTo, state = $("twState");
+  if (from === to){ setTwOut(text); state.textContent = ""; return; }
+  state.textContent = "traduciendo…";
+  let instant = "";
+  try {
+    const pair = await getPair(from, to);
+    if (rid !== tw.rid) return;
+    if (pair){
+      instant = await pair.translate(text);
+      if (rid !== tw.rid) return;
+      setTwOut(instant); state.textContent = claudeOn() ? "instantánea · mejorando…" : "instantánea";
+    }
+  } catch (e){
+    if (rid !== tw.rid) return;
+    if (e && e.name === "NotAllowedError") showBanner("Para traducir al instante, Chrome necesita descargar su traductor (solo una vez).", "download", "Descargar traductor", () => twTranslate(text));
+  }
+  if (!claudeOn()){
+    if (!instant){
+      setTwOut(""); state.textContent = "";
+      showBanner(cfg.claudeKey ? "Activa Claude para traducir este par de idiomas: el traductor del navegador no lo cubre." : "El traductor del navegador no cubre este par de idiomas. Añade tu clave de Claude en Ajustes para traducir.", "info");
+    }
+    return;
+  }
+  try {
+    const out = cleanOut(await claudeStream(cfg.expertQuality === "smart" ? SMART_MODEL : FAST_MODEL, twSystem(from, to, text), [{ type: "text", text }], 1200, 25000,
+      partial => { if (rid === tw.rid) setTwOut(cleanOut(partial)); }));
+    if (rid !== tw.rid) return;
+    if (out){ setTwOut(out); state.textContent = "mejorada por Claude"; } else state.textContent = instant ? "instantánea" : "";
+  } catch (e){
+    if (rid !== tw.rid) return;
+    state.textContent = instant ? "instantánea (Claude no respondió)" : "";
+    showBanner(claudeMessage(e), "net");
+  }
+}
+$("twIn").addEventListener("input", e => { if (!e.isComposing) twRun(false); });
+$("twIn").addEventListener("compositionend", () => twRun(false));
+$("twIn").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); twRun(true); } });
+$("twFrom").onchange = () => { const v = $("twFrom").value; if (v === cfg.twTo) setCfg("twTo", cfg.twFrom); setCfg("twFrom", v); renderTwLangs(); twRun(true); };
+$("twTo").onchange = () => { const v = $("twTo").value; if (v === cfg.twFrom) setCfg("twFrom", cfg.twTo); setCfg("twTo", v); renderTwLangs(); twRun(true); };
+$("twSwap").onclick = () => {
+  const a = cfg.twFrom; setCfg("twFrom", cfg.twTo); setCfg("twTo", a); renderTwLangs();
+  if (tw.out) $("twIn").value = tw.out;
+  twRun(true);
+};
+$("twSpeak").onclick = () => { if (tw.out) say(tw.out, localeFor(cfg.twTo), true); };
+$("twCopy").onclick = async () => {
+  if (!tw.out) return;
+  try { await navigator.clipboard.writeText(tw.out); $("twCopy").textContent = "Copiado"; setTimeout(() => { $("twCopy").textContent = "Copiar"; }, 1500); }
+  catch (e){ showBanner("No se pudo copiar. Selecciona el texto y copia con Ctrl+C.", "info"); }
+};
+$("twClear").onclick = () => { $("twIn").value = ""; twRun(true); $("twIn").focus(); };
+
+/* ---- Dictation in the writing window ---- */
+const dict = { rec: null, base: "" };
+function dictStop(){ if (dict.rec) try { dict.rec.stop(); } catch (e){} }
+function dictToggle(){
+  if (dict.rec){ dictStop(); return; }
+  const SR = self.SpeechRecognition || self.webkitSpeechRecognition;
+  if (!SR){ showBanner("Este navegador no sabe dictar. Usa Google Chrome.", "info"); return; }
+  if (listening){ showBanner("Detén la escucha (tecla F2) para dictar: el micrófono no se puede usar a la vez.", "info"); return; }
+  const r = new SR(), btn = $("twDict");
+  r.lang = localeFor(cfg.twFrom); r.continuous = true; r.interimResults = true;
+  dict.rec = r; dict.base = $("twIn").value.replace(/\s+$/, "");
+  btn.classList.add("rec"); btn.textContent = "Parar";
+  r.onresult = ev => {
+    let t = ""; for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+    $("twIn").value = (dict.base ? dict.base + " " : "") + t.trim(); twRun(false);
+  };
+  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") showBanner("El navegador no deja usar el micrófono. Permítelo en el icono del candado de la barra de direcciones.", "mic"); };
+  r.onend = () => { if (dict.rec === r) dict.rec = null; btn.classList.remove("rec"); btn.textContent = "Dictar"; twRun(true); };
+  try { r.start(); } catch (e){ dict.rec = null; btn.classList.remove("rec"); btn.textContent = "Dictar"; }
+}
+$("twDict").onclick = dictToggle;
+
+/* ---- Pop-out windows: send a pane to its own browser window (another monitor) ---- */
+const pops = {}; let popTimer = 0;
+const POP_TITLE = { A: "Simultánea", B: "Mejorada", C: "Traducción" };
+function popLines(k){
+  if (k === "C") return tw.out ? [{ who: "", text: tw.out }] : [];
+  return segments.filter(s => s.src.trim()).slice(-8).map(s => ({ who: s.speaker.name, text: k === "A" ? instantText(s) : (improvedText(s) || instantText(s)) })).filter(l => l.text);
+}
+function syncPops(){
+  for (const k of Object.keys(pops)){
+    const p = pops[k];
+    let box = null; try { box = !p.w || p.w.closed ? null : p.w.document.getElementById("o"); } catch (e){}
+    if (!box){ delete pops[k]; continue; }
+    const doc = p.w.document, lines = popLines(k);
+    box.textContent = "";
+    lines.forEach((l, i) => {
+      const para = doc.createElement("p"); if (i === lines.length - 1) para.className = "last";
+      if (l.who){ const s = doc.createElement("small"); s.textContent = l.who; para.appendChild(s); }
+      para.appendChild(doc.createTextNode(l.text)); box.appendChild(para);
+    });
+    p.w.scrollTo(0, doc.body.scrollHeight);
+  }
+}
+function schedulePops(){
+  if (popTimer || !Object.keys(pops).length) return;
+  popTimer = setTimeout(() => { popTimer = 0; syncPops(); }, 120);
+}
+function popOut(k){
+  const old = pops[k]; if (old && old.w && !old.w.closed){ old.w.focus(); return; }
+  const w = window.open("", "interp-pop-" + k, "popup,width=980,height=640");
+  if (!w){ showBanner("El navegador ha bloqueado la ventana. Permite las ventanas emergentes de esta página y vuelve a pulsar ↗.", "info"); return; }
+  w.document.open();
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${POP_TITLE[k]} · Intérprete</title>
+<style>:root{--fs:3.4rem}html,body{margin:0;background:#0b0b0c;color:#f4f4f4;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 16px;background:#161618;border-bottom:1px solid #2a2a2d;font-size:.9rem;color:#aaa}
+header button{font:inherit;background:#222226;color:#ddd;border:1px solid #3a3a3f;border-radius:999px;padding:3px 12px;margin-left:6px;cursor:pointer}
+main{padding:18px 26px 60px}p{margin:0 0 .6em;font-size:var(--fs);line-height:1.28;font-weight:500;color:#8c8c92}p.last{color:#fff}
+small{display:block;font-size:.3em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6e6e75;margin-bottom:.2em}</style></head>
+<body><header><b>${POP_TITLE[k]}</b><span><button id="m" aria-label="Letra más pequeña">A−</button><button id="p" aria-label="Letra más grande">A+</button></span></header><main id="o"></main></body></html>`);
+  w.document.close();
+  const st = pops[k] = { w, fs: 3.4 };
+  const setFs = () => w.document.documentElement.style.setProperty("--fs", st.fs + "rem");
+  w.document.getElementById("p").onclick = () => { st.fs = Math.min(12, st.fs + 0.5); setFs(); };
+  w.document.getElementById("m").onclick = () => { st.fs = Math.max(1.2, st.fs - 0.5); setFs(); };
+  syncPops();
+}
+document.querySelectorAll("[data-pop]").forEach(b => b.onclick = () => popOut(b.dataset.pop));
+window.addEventListener("beforeunload", () => { for (const k of Object.keys(pops)) try { pops[k].w.close(); } catch (e){} });
+
+$("replySel").onchange = () => {
+  setCfg("replyLang", $("replySel").value);
+  prepareTranslators(); renderReply(); renderTwLangs();
+};
+renderAll();
+offerRecovery();
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
