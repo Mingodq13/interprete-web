@@ -1,6 +1,6 @@
 /* Intérprete: service worker. Guarda la propia app para que arranque sin conexión.
    No toca nunca las llamadas a Claude ni a Deepgram (otros dominios), solo la app y las tipografías. */
-const FAMILY = "interprete-movil-v", CACHE = "interprete-movil-v1";   // each app only cleans up its own caches
+const FAMILY = "interprete-v", CACHE = "interprete-v2";   // each app only cleans up its own caches
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 self.addEventListener("install", e => {
@@ -16,6 +16,7 @@ self.addEventListener("fetch", e => {
   const font = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (url.origin !== location.origin && !font) return;
   if (url.searchParams.has("check")) return;   // the "look for updates" request must reach the network untouched
+  if (url.origin === location.origin && url.pathname.includes("/movil/")) return;   // the mobile page has its own service worker
   if (req.mode === "navigate") {
     // Network first, so a new version of the app arrives as soon as there is internet.
     e.respondWith(fetch(req).then(res => {
