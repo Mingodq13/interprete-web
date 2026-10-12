@@ -1,5 +1,6 @@
 {
-  "name": "Intérprete en vivo",
+  "id": "interprete-movil",
+  "name": "Intérprete móvil",
   "short_name": "Intérprete",
   "description": "Traducción simultánea en directo para reuniones, clases y conversaciones.",
   "lang": "es",

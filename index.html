@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-mode="mobile">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Intérprete en vivo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Intérprete móvil</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -163,6 +163,51 @@ button{cursor:pointer}
 /* Dialogs */
 dialog{border:0;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);width:min(640px,94vw);max-height:88vh}
 dialog::backdrop{background:rgba(10,15,20,.5)}
+
+/* Mobile page: one window at a time, big touch targets */
+.mtabs{display:none}
+html[data-mode=mobile],html[data-mode=mobile] body{height:100vh;height:100dvh}
+html[data-mode=mobile] body{padding-top:env(safe-area-inset-top)}
+html[data-mode=mobile] input,html[data-mode=mobile] select,html[data-mode=mobile] textarea{font-size:16px}
+html[data-mode=mobile] .top{flex-wrap:wrap;gap:4px 8px;padding:6px 10px 2px}
+html[data-mode=mobile] .titles{display:contents}
+html[data-mode=mobile] .titles h1{order:1;font-size:1.1rem;margin-right:auto}
+html[data-mode=mobile] .top .pill{order:2;min-height:40px;padding:0 14px;font-size:.9rem}
+html[data-mode=mobile] .topic{display:none}
+html[data-mode=mobile] .titles .chips{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+html[data-mode=mobile] .chip{flex:none;min-height:40px;display:inline-flex;align-items:center;padding:0 14px}
+html[data-mode=mobile] .chip b{font-size:.95rem}
+html[data-mode=mobile] .voices{padding:2px 10px}
+html[data-mode=mobile] .voices .source,html[data-mode=mobile] .voices .hint{display:none}
+html[data-mode=mobile] .reply{font-size:.85rem}
+html[data-mode=mobile] .reply select{min-height:40px;padding:0 12px;font-size:.9rem}
+html[data-mode=mobile] .banner{margin:0 10px 6px;padding:8px 10px;font-size:.85rem}
+html[data-mode=mobile] .pane-head{min-height:0;padding:4px 10px 0;justify-content:flex-end}
+html[data-mode=mobile] .pane-head h2,html[data-mode=mobile] .pane-head .sub,html[data-mode=mobile] .pane-head .lat,html[data-mode=mobile] .winbtn{display:none}
+html[data-mode=mobile] .pane-head .pill{min-height:36px}
+html[data-mode=mobile] .split,html[data-mode=mobile] .dock,html[data-mode=mobile] #btnDir,html[data-mode=mobile] #btnResetWin{display:none!important}
+html[data-mode=mobile] .feed{padding:6px 12px 16px}
+html[data-mode=mobile] .tw{padding:6px 12px 10px}
+html[data-mode=mobile] .tw-cols{flex-direction:column}
+html[data-mode=mobile] .tw-swap{align-self:center;margin:0;transform:rotate(90deg);min-height:36px}
+html[data-mode=mobile] .tw textarea{min-height:90px}
+html[data-mode=mobile] .tw .pill.small,html[data-mode=mobile] .tw-col select{min-height:40px}
+html[data-mode=mobile] .mtabs{display:flex;gap:6px;padding:6px 10px;background:var(--bg);border-top:1px solid var(--line)}
+html[data-mode=mobile] .mtabs button{flex:1;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-weight:700;font-size:.95rem}
+html[data-mode=mobile] .mtabs button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+html[data-mode=mobile] .mtabs button[hidden]{display:none}
+html[data-mode=mobile] .bar-bottom{padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px 10px}
+html[data-mode=mobile] .mic{width:56px;height:56px}
+html[data-mode=mobile] .mic svg{width:26px;height:26px}
+html[data-mode=mobile] .bar-bottom .pill.small,html[data-mode=mobile] .bar-bottom .source button{min-height:40px}
+html[data-mode=mobile] dialog{width:96vw;max-height:92vh;max-height:92dvh}
+html[data-mode=mobile] .dlg{padding:16px;max-height:92vh;max-height:92dvh}
+html[data-mode=mobile] .dlg .btn,html[data-mode=mobile] .dlg .list button{min-height:44px}
+@media (max-height:480px){
+  html[data-mode=mobile] .mtabs button{min-height:36px}
+  html[data-mode=mobile] .mic{width:44px;height:44px}
+  html[data-mode=mobile] .top .pill,html[data-mode=mobile] .chip{min-height:34px}
+}
 .dlg{padding:22px 24px;display:flex;flex-direction:column;gap:10px;max-height:88vh;overflow:auto}
 .dlg h3{margin:0 0 4px;font-size:1.25rem}
 .dlg h4{margin:14px 0 0;font-size:1rem}
@@ -252,6 +297,8 @@ dialog::backdrop{background:rgba(10,15,20,.5)}
   <div class="keys">Atajos: F2 empieza o detiene · Q «¿Qué ha dicho?» · A apuntes · R repite la última frase · 1 a 9 eligen quién habla.</div>
 </section>
 
+<nav class="mtabs" id="mtabs" aria-label="Qué ventana ver"><button data-tab="B">Mejorada</button><button data-tab="A">Simultánea</button><button data-tab="C">Escribir</button></nav>
+
 <footer class="bar-bottom">
   <button class="mic" id="mic" aria-pressed="false" aria-label="Empezar a interpretar (F2)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
@@ -281,8 +328,14 @@ dialog::backdrop{background:rgba(10,15,20,.5)}
    Storage
    ===================================================================== */
 const PREFIX = "interp3:";
-function load(k, d){ try{ const v = localStorage.getItem(PREFIX + k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } }
-function keep(k, v){ try{ localStorage.setItem(PREFIX + k, JSON.stringify(v)); }catch(e){} }
+/** Bump on every release: shown in Más → Versión, and compared with the one published when checking for updates. */
+const APP_VERSION = "2026.10.11-1";
+/** The mobile page (movil/index.html) is this same file with data-mode="mobile". It shares the keys and settings, but keeps its own layout and session. */
+const MOBILE = document.documentElement.dataset.mode === "mobile";
+const MOBILE_OWN = new Set(["win", "winV", "mtab", "session", "source", "layoutMode", "twFrom", "twTo", "mobileHint"]);
+const storeKey = k => PREFIX + (MOBILE && MOBILE_OWN.has(k) ? "m." : "") + k;
+function load(k, d){ try{ const v = localStorage.getItem(storeKey(k)); return v === null ? d : JSON.parse(v); }catch(e){ return d; } }
+function keep(k, v){ try{ localStorage.setItem(storeKey(k), JSON.stringify(v)); }catch(e){} }
 const cfg = {
   deepgramKey: load("deepgramKey", ""), useDeepgram: load("useDeepgram", true), diarize: load("diarize", true),
   claudeKey: load("claudeKey", ""), useClaude: load("useClaude", true),
@@ -292,7 +345,7 @@ const cfg = {
   source: load("source", "mic"), topic: load("topic", ""), docName: load("docName", ""), docBrief: load("docBrief", ""),
   userGlossary: load("userGlossary", ""), keepTerms: load("keepTerms", ""), selectedId: load("selectedId", ""),
   participants: load("participants", null), profiles: load("profiles", []), classMode: load("classMode", false),
-  win: load("win", null), twFrom: load("twFrom", "es"), twTo: load("twTo", ""), expertQuality: load("expertQuality", "fast"),
+  mtab: load("mtab", ""), win: load("win", null), twFrom: load("twFrom", "es"), twTo: load("twTo", ""), expertQuality: load("expertQuality", "fast"),
   replyLang: load("replyLang", "auto"), micId: load("micId", ""), keepAwake: load("keepAwake", true), exportCols: load("exportCols", true)
 };
 function setCfg(k, v){ cfg[k] = v; keep(k, v); }
@@ -564,7 +617,7 @@ function applyLayout(){
   layoutPanes();
   renderEmpty();
 }
-function renderAll(){ renderChips(); renderTopic(); renderStatus(); renderLatency(); renderMode(); applyLayout(); renderTwLangs(); }
+function renderAll(){ renderChips(); renderTopic(); renderStatus(); renderLatency(); renderMode(); applyLayout(); renderTwLangs(); renderTabs(); }
 
 /* =====================================================================
    Segments on screen (left: simultaneous, right: improved)
@@ -587,7 +640,7 @@ function newSegment(forced){
     return { row, meta, tr, src };
   };
   seg.a = make($("feedA"), true);
-  seg.b = make($("feedB"), false); seg.b.row.hidden = true;
+  seg.b = make($("feedB"), MOBILE); seg.b.row.hidden = true;
   segments.push(seg);
   for (const f of ["feedA", "feedB"]) while ($(f).children.length > 301) $(f).children[1].remove();
   renderEmpty();
@@ -611,7 +664,7 @@ function renderSeg(seg){
   if (!seg.isFinal && seg.tailDraft) a.push([seg.tailDraft, "tail"]);
   else if (!seg.isFinal && seg.tailSrc && (trState !== "ready" || !pairReady(seg))) a.push([seg.tailSrc, "tail"]);
   pieces(seg.a.tr, a);
-  seg.a.src.textContent = seg.src;
+  seg.a.src.textContent = seg.src; if (seg.b.src) seg.b.src.textContent = seg.src;
   seg.a.meta.textContent = meta;
   seg.a.row.classList.toggle("live", !seg.isFinal);
   const show = seg.chunks.some(c => c.wantExpert);
@@ -797,7 +850,7 @@ const pairReady = seg => { const f = seg.speaker.lang, t = segTo(seg); return f 
 async function prepareTranslators(){
   if (trState === "preparing") return;
   if (!("Translator" in self)){
-    if (trState !== "unavailable"){ trState = "unavailable"; showBanner("Este navegador no trae traductor integrado: la columna Simultánea mostrará el texto original. Usa Google Chrome actualizado para tenerla.", "info"); }
+    if (trState !== "unavailable"){ trState = "unavailable"; if (!MOBILE) showBanner("Este navegador no trae traductor integrado: la columna Simultánea mostrará el texto original. Usa Google Chrome actualizado para tenerla.", "info"); }
     return;
   }
   const need = neededPairs().filter(([a, b]) => !(pairKey(a, b) in pairCache));
@@ -1709,6 +1762,46 @@ async function installApp(){
     <p class="help">Se abre en su propia ventana, con su icono, y arranca aunque no haya conexión (para traducir sí hace falta internet).</p>
     <div class="actions"><button class="btn primary" data-close>Entendido</button></div>`);
 }
+/** Version screen: what is loaded now, and whether GitHub has a newer one. */
+async function publishedVersion(){
+  const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const m = (await r.text()).match(/const APP_VERSION = "([^"]+)"/);
+  if (!m) throw new Error("sin versión");
+  return m[1];
+}
+function openVersion(){
+  const web = /^https?:$/.test(location.protocol);
+  const where = MOBILE ? "versión móvil" : "versión de escritorio";
+  const inst = isStandalone() ? "instalada como app" : "abierta en el navegador";
+  const offline = "serviceWorker" in navigator && navigator.serviceWorker.controller ? "sí (funciona sin conexión)" : "no todavía";
+  openDialog(`<h3>Versión</h3>
+    <p class="help"><b>Esta es la ${where} ${APP_VERSION}</b> (año.mes.día-número).<br>Está ${inst}. Copia guardada para abrir sin internet: ${offline}.</p>
+    ${web ? "" : `<p class="help">Estás usando la app como archivo local: aquí no se puede comprobar si hay otra más nueva.</p>`}
+    <p class="help" id="verOut" role="status" aria-live="polite"></p>
+    <div class="actions"><button class="btn" data-close>Cerrar</button>${web ? `<button class="btn primary" id="verCheck">Buscar actualización</button>` : ""}</div>`, () => {
+    const out = $("verOut"), btn = $("verCheck");
+    if (!btn) return;
+    btn.onclick = async () => {
+      btn.disabled = true; out.textContent = "Comprobando…";
+      try {
+        const v = await publishedVersion();
+        if (v === APP_VERSION){ out.innerHTML = "<b>Ya tienes la última versión</b> (" + esc(v) + ")."; btn.disabled = false; return; }
+        out.innerHTML = "<b>Hay una versión más nueva: " + esc(v) + ".</b> Al actualizar se recarga la página; si estabas en una sesión, te ofrecerá recuperarla.";
+        btn.textContent = "Actualizar ahora"; btn.disabled = false;
+        btn.onclick = async () => {
+          btn.disabled = true; out.textContent = "Actualizando…";
+          try { for (const k of await caches.keys()) if (k.startsWith(MOBILE ? "interprete-movil-v" : "interprete-v")) await caches.delete(k); } catch (e){}
+          try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e){}
+          location.replace(location.pathname + "?v=" + Date.now());
+        };
+      } catch (e){
+        out.textContent = "No he podido comprobarlo (¿sin conexión?). Prueba otra vez con internet.";
+        btn.disabled = false;
+      }
+    };
+  });
+}
 function openMore(){
   openDialog(`<h3>Más</h3><div class="list">
     <button id="mRecap">¿Qué ha dicho? (último minuto) · tecla Q</button>
@@ -1720,8 +1813,10 @@ function openMore(){
     <button id="mClear">Borrar la transcripción</button>
     ${isStandalone() ? "" : `<button id="mInstall">Instalar como app (icono propio, sin barra del navegador)</button>`}
     <button id="mHelp">Atajos de teclado y consejos</button>
+    <button id="mVersion">Versión ${APP_VERSION} · buscar actualización</button>
   </div><div class="actions"><button class="btn" data-close>Cerrar</button></div>`, () => {
     if ($("mInstall")) $("mInstall").onclick = installApp;
+    $("mVersion").onclick = openVersion;
     $("mRecap").onclick = openRecap; $("mNotes").onclick = openNotes;
     $("mProfiles").onclick = openProfiles; $("mAsk").onclick = openAsk; $("mSummary").onclick = openSummary;
     $("mCopy").onclick = async () => { const t = transcriptText(); if (!t){ closeDialog(); showBanner("Todavía no hay nada transcrito.", "info"); return; } try { await navigator.clipboard.writeText(t); showBanner("Transcripción copiada al portapapeles.", "info"); } catch (e){ download("transcripcion.txt", new Blob([t], { type: "text/plain" })); } closeDialog(); };
@@ -1787,7 +1882,7 @@ function saveSession(){
 }
 function scheduleSave(){ if (!saveTimer) saveTimer = setTimeout(saveSession, 1500); }
 function flushSession(){ if (segments.length) saveSession(); }
-function forgetSession(){ clearTimeout(saveTimer); saveTimer = 0; try { localStorage.removeItem(PREFIX + SESSION_KEY); } catch (e){} }
+function forgetSession(){ clearTimeout(saveTimer); saveTimer = 0; try { localStorage.removeItem(storeKey(SESSION_KEY)); } catch (e){} }
 function restoreSession(snap){
   for (const o of snap.segs){
     const sp = o.speaker;
@@ -1967,7 +2062,7 @@ function fitText(){
   if (!box.clientWidth || !n) return;
   const col = box.classList.contains("col");
   const pw = col ? box.clientWidth : box.clientWidth / n, ph = col ? box.clientHeight / n : box.clientHeight;
-  const k = Math.max(0.78, Math.min(1.45, Math.sqrt(pw * ph / (640 * 520))));
+  const k = Math.max(0.78, Math.min(1.45, Math.sqrt(pw * ph / (MOBILE ? 360 * 420 : 640 * 520))));
   const base = [1.25, 1.45, 1.8][cfg.textSize] || 1.45;
   document.documentElement.style.setProperty("--fs", Math.max(1, Math.min(3, base * k)).toFixed(3) + "rem");
 }
@@ -2005,6 +2100,18 @@ function layoutPanes(){
   $("btnDir").textContent = { auto: "Disposición: automática", row: "Disposición: lado a lado", col: "Disposición: apiladas" }[cfg.win.dir];
   fitText();
 }
+/* Mobile: one window at a time, chosen from the tabs above the bottom bar */
+function renderTabs(){
+  if (!MOBILE) return;
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(!cfg.win[b.dataset.tab].min)));
+  document.querySelector('[data-tab="A"]').hidden = !("Translator" in self) && claudeOn();
+}
+function setTab(k){
+  if (!WIN.includes(k)) k = "B";
+  for (const w of WIN) cfg.win[w].min = w !== k;
+  setCfg("mtab", k); saveWin(); layoutPanes(); renderTabs();
+}
+document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => setTab(b.dataset.tab));
 function setMin(k, min){
   cfg.win[k].min = min; saveWin(); layoutPanes();
   if (!min && k === "C") $("twIn").focus();
@@ -2208,8 +2315,18 @@ $("replySel").onchange = () => {
   setCfg("replyLang", $("replySel").value);
   prepareTranslators(); renderReply(); renderTwLangs();
 };
+if (MOBILE){
+  if (cfg.source !== "mic") setCfg("source", "mic");
+  let t = cfg.mtab || (claudeOn() ? "B" : "A");
+  if (t === "A" && !("Translator" in self) && claudeOn()) t = "B";
+  setTab(t);
+}
 renderAll();
 offerRecovery();
+if (!MOBILE && /^https?:$/.test(location.protocol) && !load("mobileHint", false)){
+  let small = false; try { small = matchMedia("(pointer: coarse) and (max-width: 700px)").matches; } catch (e){}
+  if (small){ keep("mobileHint", true); showBanner("Estás en un móvil: hay una versión pensada para pantallas pequeñas.", "info", "Abrir versión móvil", () => { location.href = "movil/"; }); }
+}
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
