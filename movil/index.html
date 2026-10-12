@@ -329,7 +329,7 @@ html[data-mode=mobile] .dlg .btn,html[data-mode=mobile] .dlg .list button{min-he
    ===================================================================== */
 const PREFIX = "interp3:";
 /** Bump on every release: shown in Más → Versión, and compared with the one published when checking for updates. */
-const APP_VERSION = "2026.10.11-1";
+const APP_VERSION = "2026.10.12-1";
 /** The mobile page (movil/index.html) is this same file with data-mode="mobile". It shares the keys and settings, but keeps its own layout and session. */
 const MOBILE = document.documentElement.dataset.mode === "mobile";
 const MOBILE_OWN = new Set(["win", "winV", "mtab", "session", "source", "layoutMode", "twFrom", "twTo", "mobileHint"]);
@@ -339,6 +339,7 @@ function keep(k, v){ try{ localStorage.setItem(storeKey(k), JSON.stringify(v)); 
 const cfg = {
   deepgramKey: load("deepgramKey", ""), useDeepgram: load("useDeepgram", true), diarize: load("diarize", true),
   claudeKey: load("claudeKey", ""), useClaude: load("useClaude", true),
+  deeplUrl: load("deeplUrl", ""), deeplToken: load("deeplToken", ""), twMode: load("twMode", "deepl"),
   spanishOut: load("spanishOut", "es-ES"), outputMode: load("outputMode", 0), layoutMode: load("layoutMode", 0),
   voiceSource: load("voiceSource", "fast"), rate: load("rate", 1.1), voiceMap: load("voiceMap", { es: load("voiceEs", ""), en: load("voiceEn", "") }),
   speakMine: load("speakMine", false), headphones: load("headphones", true), textSize: load("textSize", 1),
@@ -1646,6 +1647,39 @@ async function importDocument(file, topic){
   }
 }
 
+/** DeepL, only for the writing window. The page talks to your own small server (deepl-proxy/worker.js), which holds the DeepL key. */
+const DL_SOURCE = { en: "EN", es: "ES", de: "DE", pt: "PT", fr: "FR", it: "IT" };
+const dlTarget = l => ({ en: "EN-US", es: cfg.spanishOut === "es-419" ? "ES-419" : "ES", de: "DE", pt: "PT-PT", fr: "FR", it: "IT" })[l];
+const dlCache = new Map();
+let dlDownUntil = 0;
+async function deeplCall(url, token, text, source, target){
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...(token ? { "x-app-token": token } : {}) }, body: JSON.stringify({ text, source, target }), signal: ctl.signal });
+  } catch (e){ throw Object.assign(new Error("net"), { dl: "net" }); }
+  finally { clearTimeout(timer); }
+  let data = {}; try { data = await res.json(); } catch (e){}
+  if (!res.ok) throw Object.assign(new Error(data.error || ("Error " + res.status)), { dl: data.deepl || res.status });
+  if (typeof data.text !== "string") throw Object.assign(new Error("Respuesta no válida del servidor de DeepL."), { dl: "bad" });
+  return data.text;
+}
+async function deeplTranslate(text, from, to){
+  const key = [from, to, cfg.spanishOut, text].join("\u0001");
+  if (dlCache.has(key)) return dlCache.get(key);
+  const out = await deeplCall(cfg.deeplUrl, cfg.deeplToken, text, DL_SOURCE[from], dlTarget(to));
+  if (dlCache.size > 200) dlCache.clear();
+  dlCache.set(key, out);
+  return out;
+}
+function deeplMessage(e){
+  if (e && e.dl === "net") return "No llego al servidor de DeepL: revisa su dirección en Ajustes o la conexión.";
+  return "DeepL: " + ((e && e.message) || "error desconocido");
+}
+async function testDeepl(url, token){
+  try { return "DeepL: funciona («Hello» → «" + await deeplCall(url, token, "Hello", "EN", "ES") + "»)."; }
+  catch (e){ return deeplMessage(e); }
+}
 async function testClaudeKey(key){
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
@@ -1700,7 +1734,11 @@ function openSettings(){
     <input type="password" id="kCl" value="${esc(cfg.claudeKey)}" placeholder="Clave de Claude (sk-ant-…)" autocomplete="off">
     <label class="row"><input type="checkbox" id="kClUse" ${cfg.useClaude ? "checked" : ""}>Usar Claude (si lo desactivas, la clave se queda guardada)</label>
     <div class="radios">${r("qual", "fast", cfg.expertQuality, "Rápida: llega antes")}${r("qual", "smart", cfg.expertQuality, "Más precisa: entiende mejor frases hechas y jerga, llega un poco más tarde")}</div>
-    <p class="help">Las claves se guardan solo en este navegador de este PC.</p>
+    <h4>Escribir y traducir: DeepL</h4>
+    <input type="text" id="kDlUrl" value="${esc(cfg.deeplUrl)}" placeholder="Dirección del servidor DeepL" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
+    <input type="password" id="kDlTok" value="${esc(cfg.deeplToken)}" placeholder="Código de acceso del servidor" autocomplete="off">
+    <div class="radios">${r("twmode", "deepl", cfg.twMode, "Solo DeepL: rápido y no gasta Claude")}${r("twmode", "both", cfg.twMode, "DeepL primero y después Claude lo mejora")}</div>
+    <p class="help">Déjalo vacío para seguir usando el traductor de Chrome y Claude. Las claves de DeepL y de Claude se guardan solo en este navegador de este dispositivo; la de DeepL va en tu servidor, no aquí.</p>
     <button class="btn" id="kKeys" type="button">Probar claves</button><p class="help" id="keysOut"></p>
     <h4>Pantalla</h4>
     <p class="help">Las ventanas se minimizan, se reabren y se redimensionan desde la pantalla principal (botón – de cada ventana, divisores y barra inferior).</p>
@@ -1721,7 +1759,8 @@ function openSettings(){
       $("kKeys").onclick = async () => {
         const out = $("keysOut"), ck = $("kCl").value.trim(), dk = $("kDg").value.trim();
         out.textContent = "Comprobando…";
-        const res = await Promise.all([ck ? testClaudeKey(ck) : "Claude: sin clave.", dk ? testDeepgramKey(dk) : "Deepgram: sin clave."]);
+        let du = $("kDlUrl").value.trim(); if (du && !/^https?:\/\//i.test(du)) du = "https://" + du;
+        const res = await Promise.all([ck ? testClaudeKey(ck) : "Claude: sin clave.", dk ? testDeepgramKey(dk) : "Deepgram: sin clave.", du ? testDeepl(du, $("kDlTok").value.trim()) : "DeepL: sin servidor."]);
         out.textContent = res.join("  ·  ");
       };
       $("vTest").onclick = () => {
@@ -1737,6 +1776,8 @@ function openSettings(){
         setCfg("deepgramKey", $("kDg").value.trim()); setCfg("useDeepgram", $("kDgUse").checked); setCfg("diarize", $("kDiar").checked);
         if ($("kCl").value.trim() !== cfg.claudeKey || $("kClUse").checked !== cfg.useClaude) expertBlocked = false;
         setCfg("claudeKey", $("kCl").value.trim()); setCfg("useClaude", $("kClUse").checked);
+        { let du = $("kDlUrl").value.trim(); if (du && !/^https?:\/\//i.test(du)) du = "https://" + du; if (du !== cfg.deeplUrl || $("kDlTok").value.trim() !== cfg.deeplToken) dlDownUntil = 0;
+          setCfg("deeplUrl", du); setCfg("deeplToken", $("kDlTok").value.trim()); setCfg("twMode", val("twmode")); }
         setCfg("textSize", +val("size")); setCfg("outputMode", +val("out")); setCfg("expertQuality", val("qual"));
         setCfg("voiceSource", val("vsrc")); setCfg("rate", +val("rate")); setCfg("voiceMap", Object.fromEntries([...Object.entries(cfg.voiceMap || {}), ...voiceLangs.map(l => [l, $("v_" + l).value])]));
         setCfg("headphones", $("kHead").checked); setCfg("speakMine", $("kMine").checked); setCfg("spanishOut", val("sp"));
@@ -2192,14 +2233,27 @@ async function twTranslate(text){
   const rid = ++tw.rid, from = cfg.twFrom, to = cfg.twTo, state = $("twState");
   if (from === to){ setTwOut(text); state.textContent = ""; return; }
   state.textContent = "traduciendo…";
-  let instant = "";
-  try {
+  let instant = "", engine = "";
+  if (cfg.deeplUrl && Date.now() > dlDownUntil){
+    try {
+      instant = await deeplTranslate(text, from, to);
+      if (rid !== tw.rid) return;
+      engine = "DeepL"; setTwOut(instant);
+      if (cfg.twMode !== "both" || !claudeOn()){ state.textContent = "DeepL"; return; }
+      state.textContent = "DeepL · mejorando con Claude…";
+    } catch (e){
+      if (rid !== tw.rid) return;
+      dlDownUntil = Date.now() + 30000;
+      showBanner(deeplMessage(e) + " Mientras tanto uso " + (claudeOn() ? "Claude" : "el traductor del navegador") + ".", "net");
+    }
+  }
+  if (!instant) try {
     const pair = await getPair(from, to);
     if (rid !== tw.rid) return;
     if (pair){
       instant = await pair.translate(text);
       if (rid !== tw.rid) return;
-      setTwOut(instant); state.textContent = claudeOn() ? "instantánea · mejorando…" : "instantánea";
+      engine = "instantánea"; setTwOut(instant); state.textContent = claudeOn() ? "instantánea · mejorando…" : "instantánea";
     }
   } catch (e){
     if (rid !== tw.rid) return;
@@ -2216,10 +2270,10 @@ async function twTranslate(text){
     const out = cleanOut(await claudeStream(cfg.expertQuality === "smart" ? SMART_MODEL : FAST_MODEL, twSystem(from, to, text), [{ type: "text", text }], 1200, 25000,
       partial => { if (rid === tw.rid) setTwOut(cleanOut(partial)); }));
     if (rid !== tw.rid) return;
-    if (out){ setTwOut(out); state.textContent = "mejorada por Claude"; } else state.textContent = instant ? "instantánea" : "";
+    if (out){ setTwOut(out); state.textContent = "mejorada por Claude"; } else state.textContent = instant ? engine : "";
   } catch (e){
     if (rid !== tw.rid) return;
-    state.textContent = instant ? "instantánea (Claude no respondió)" : "";
+    state.textContent = instant ? engine + " (Claude no respondió)" : "";
     showBanner(claudeMessage(e), "net");
   }
 }
