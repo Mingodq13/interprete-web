@@ -1,9 +1,11 @@
 <!doctype html>
-<html lang="es" data-mode="mobile">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Intérprete móvil</title>
+<title>Intérprete en vivo</title>
+<script>/* The same file serves the desktop page and, inside the "movil" folder, the mobile page. */
+if (/\/movil\/(index\.html)?$/.test(location.pathname)){ document.documentElement.setAttribute("data-mode", "mobile"); document.title = "Intérprete móvil"; }</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -137,6 +139,34 @@ button{cursor:pointer}
 .cabin .who{color:var(--muted);font-weight:700;font-size:1.1rem}
 .cabin .line{font-size:2.1rem;line-height:1.25;margin:14px 0 22px;max-width:40ch}
 .cabin .keys{color:var(--muted);font-size:.95rem;line-height:1.5;max-width:60ch}
+.cabin-qa{margin:0 0 22px;padding:12px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);max-width:62ch}
+.cabin-qa[hidden]{display:none}
+.cabin-ans{font-size:1.5rem;line-height:1.3;margin:6px 0 4px;font-weight:500}
+
+/* Questions and suggested answers: one window in Spanish, one in the meeting language */
+.pane.d{background:var(--bg)}
+.pane.e{background:var(--surface)}
+.qa{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px;background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.pane.e .qa{background:var(--bg)}
+.qa.live{border-left:3px solid var(--tally)}
+.qa.hl{border-color:var(--muted)}
+.qa.flash{border-color:var(--tally);box-shadow:0 0 0 3px var(--tally-soft)}
+.qa-head{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);font-weight:700;flex-wrap:wrap}
+.qa-num{background:var(--ink);color:var(--surface);border-radius:999px;padding:1px 9px;font-size:.78rem}
+.qa-state{margin-left:auto;font-weight:400}
+.qa-q{margin:6px 0 8px;padding-left:10px;border-left:3px solid var(--line);font-size:calc(var(--fs) * .66);line-height:1.38;color:var(--muted);overflow-wrap:anywhere}
+.qa-lbl{display:block;font-size:.72rem;font-weight:700;color:var(--tally);text-transform:uppercase;letter-spacing:.05em}
+.qa-short{margin:2px 0 0;font-size:calc(var(--fs) * .82);line-height:1.32;font-weight:500;overflow-wrap:anywhere}
+.qa-more{margin-top:6px}
+.qa-more[hidden]{display:none}
+.qa-more summary{cursor:pointer;color:var(--muted);font-size:.84rem;font-weight:700}
+.qa-long{margin:4px 0 0;font-size:calc(var(--fs) * .64);line-height:1.45;overflow-wrap:anywhere}
+.qa-tip{margin:6px 0 0;font-size:.85rem;line-height:1.4;color:var(--muted)}
+.qa-tip[hidden]{display:none}
+.qa-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.qa-actions .pill.small{padding:2px 10px;font-size:.78rem}
+.qa-actions [hidden]{display:none}
+.qa .wait{color:var(--muted);font-weight:400}
 
 /* Bottom bar */
 .bar-bottom{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:6px 16px;background:var(--surface);border-top:1px solid var(--line)}
@@ -184,6 +214,7 @@ html[data-mode=mobile] .reply select{min-height:40px;padding:0 12px;font-size:.9
 html[data-mode=mobile] .banner{margin:0 10px 6px;padding:8px 10px;font-size:.85rem}
 html[data-mode=mobile] .pane-head{min-height:0;padding:4px 10px 0;justify-content:flex-end}
 html[data-mode=mobile] .pane-head h2,html[data-mode=mobile] .pane-head .sub,html[data-mode=mobile] .pane-head .lat,html[data-mode=mobile] .winbtn{display:none}
+html[data-mode=mobile] .pane.d .pane-head h2,html[data-mode=mobile] .pane.e .pane-head h2{display:block;font-size:.9rem;margin-right:auto}
 html[data-mode=mobile] .pane-head .pill{min-height:36px}
 html[data-mode=mobile] .split,html[data-mode=mobile] .dock,html[data-mode=mobile] #btnDir,html[data-mode=mobile] #btnResetWin{display:none!important}
 html[data-mode=mobile] .feed{padding:6px 12px 16px}
@@ -285,6 +316,14 @@ html[data-mode=mobile] .dlg .btn,html[data-mode=mobile] .dlg .list button{min-he
         </div>
       </div>
     </section>
+    <section class="pane d" id="paneD">
+      <div class="pane-head"><h2>Preguntas · Español</h2><span class="sub">respuesta sugerida a cada pregunta</span><button class="pill small recap" id="btnQaAsk" title="Sugerir qué responder a lo último que se ha dicho (tecla S)">¿Qué respondo?</button><button class="winbtn" data-pop="D" title="Abrir en otra ventana (por ejemplo, en otro monitor)" aria-label="Abrir la ventana de preguntas en español aparte">↗</button><button class="winbtn" data-min="D" title="Minimizar" aria-label="Minimizar la ventana de preguntas en español">–</button></div>
+      <div class="feed" id="feedD"><p class="empty" id="emptyD"></p></div>
+    </section>
+    <section class="pane e" id="paneE">
+      <div class="pane-head"><h2 id="qaOtTitle">Preguntas · Inglés</h2><span class="sub">para decirla en voz alta</span><button class="winbtn" data-pop="E" title="Abrir en otra ventana (por ejemplo, en otro monitor)" aria-label="Abrir la ventana de preguntas en el idioma de la reunión aparte">↗</button><button class="winbtn" data-min="E" title="Minimizar" aria-label="Minimizar la ventana de preguntas en el idioma de la reunión">–</button></div>
+      <div class="feed" id="feedE"><p class="empty" id="emptyE"></p></div>
+    </section>
   </div>
   <div class="dock" id="dock">
     <div class="dockchips" id="dockChips"></div>
@@ -294,10 +333,11 @@ html[data-mode=mobile] .dlg .btn,html[data-mode=mobile] .dlg .list button{min-he
 <section class="cabin" id="cabin" hidden>
   <div class="who" id="cabinWho"></div>
   <div class="line" id="cabinLine">Pulsa el micrófono para empezar.</div>
-  <div class="keys">Atajos: F2 empieza o detiene · Q «¿Qué ha dicho?» · A apuntes · R repite la última frase · 1 a 9 eligen quién habla.</div>
+  <div class="cabin-qa" id="cabinQa" hidden><div class="who" id="cabinQaQ"></div><div class="cabin-ans" id="cabinQaA"></div><div class="help" id="cabinQaEs"></div></div>
+  <div class="keys">Atajos: F2 empieza o detiene · Q «¿Qué ha dicho?» · S «¿Qué respondo?» · A apuntes · R repite la última frase · 1 a 9 eligen quién habla.</div>
 </section>
 
-<nav class="mtabs" id="mtabs" aria-label="Qué ventana ver"><button data-tab="B">Mejorada</button><button data-tab="A">Simultánea</button><button data-tab="C">Escribir</button></nav>
+<nav class="mtabs" id="mtabs" aria-label="Qué ventana ver"><button data-tab="B">Mejorada</button><button data-tab="A">Simultánea</button><button data-tab="C">Escribir</button><button data-tab="Q">Preguntas</button></nav>
 
 <footer class="bar-bottom">
   <button class="mic" id="mic" aria-pressed="false" aria-label="Empezar a interpretar (F2)">
@@ -329,7 +369,7 @@ html[data-mode=mobile] .dlg .btn,html[data-mode=mobile] .dlg .list button{min-he
    ===================================================================== */
 const PREFIX = "interp3:";
 /** Bump on every release: shown in Más → Versión, and compared with the one published when checking for updates. */
-const APP_VERSION = "2026.10.12-1";
+const APP_VERSION = "2026.10.20-1";
 /** The mobile page (movil/index.html) is this same file with data-mode="mobile". It shares the keys and settings, but keeps its own layout and session. */
 const MOBILE = document.documentElement.dataset.mode === "mobile";
 const MOBILE_OWN = new Set(["win", "winV", "mtab", "session", "source", "layoutMode", "twFrom", "twTo", "mobileHint"]);
@@ -347,7 +387,8 @@ const cfg = {
   userGlossary: load("userGlossary", ""), keepTerms: load("keepTerms", ""), selectedId: load("selectedId", ""),
   participants: load("participants", null), profiles: load("profiles", []), classMode: load("classMode", false),
   mtab: load("mtab", ""), win: load("win", null), twFrom: load("twFrom", "es"), twTo: load("twTo", ""), expertQuality: load("expertQuality", "fast"),
-  replyLang: load("replyLang", "auto"), micId: load("micId", ""), keepAwake: load("keepAwake", true), exportCols: load("exportCols", true)
+  replyLang: load("replyLang", "auto"), micId: load("micId", ""), keepAwake: load("keepAwake", true), exportCols: load("exportCols", true),
+  qaMode: load("qaMode", "all"), qaSpeak: load("qaSpeak", false), aboutMe: load("aboutMe", ""), myNames: load("myNames", "")
 };
 function setCfg(k, v){ cfg[k] = v; keep(k, v); }
 
@@ -439,11 +480,12 @@ function onParticipantsChanged(){
   prepareTranslators();
   renderTwLangs();
   renderReply();
+  renderQaTitles();
 }
 {
   const w0 = cfg.win && typeof cfg.win === "object" ? cfg.win : null, lm = load("layoutMode", 0);
-  const w = { dir: "auto", A: { min: lm === 2, grow: 1 }, B: { min: lm === 1, grow: 1 }, C: { min: true, grow: 1 } };
-  if (w0){ w.dir = w0.dir === "col" || w0.dir === "row" ? w0.dir : "auto"; for (const k of ["A", "B", "C"]) if (w0[k]) w[k] = { min: !!w0[k].min, grow: +w0[k].grow > 0 ? +w0[k].grow : 1 }; }
+  const w = { dir: "auto", A: { min: lm === 2, grow: 1 }, B: { min: lm === 1, grow: 1 }, C: { min: true, grow: 1 }, D: { min: false, grow: 1 }, E: { min: false, grow: 1 } };
+  if (w0){ w.dir = w0.dir === "col" || w0.dir === "row" ? w0.dir : "auto"; for (const k of ["A", "B", "C", "D", "E"]) if (w0[k]) w[k] = { min: !!w0[k].min, grow: +w0[k].grow > 0 ? +w0[k].grow : 1 }; }
   if (load("winV", 0) < 2){ w.dir = "auto"; keep("winV", 2); }   // new default: the layout follows the window size
   setCfg("win", w);
 }
@@ -618,7 +660,7 @@ function applyLayout(){
   layoutPanes();
   renderEmpty();
 }
-function renderAll(){ renderChips(); renderTopic(); renderStatus(); renderLatency(); renderMode(); applyLayout(); renderTwLangs(); renderTabs(); }
+function renderAll(){ renderChips(); renderTopic(); renderStatus(); renderLatency(); renderMode(); renderQaTitles(); applyLayout(); renderTwLangs(); renderTabs(); renderQaEmpty(); }
 
 /* =====================================================================
    Segments on screen (left: simultaneous, right: improved)
@@ -691,6 +733,7 @@ function renderSeg(seg){
       $("cabinWho").textContent = `${seg.speaker.name} (${langName(seg.speaker.lang)}) · ${clock(seg.startedAt)}`;
     }
   }
+  if (seg.qa) renderQaQuestion(seg.qa);
   if (sa) fa.scrollTop = fa.scrollHeight;
   if (sb) fb.scrollTop = fb.scrollHeight;
 }
@@ -1446,6 +1489,7 @@ function afterPhrase(seg){
     if (lead != null && lead !== teacherTag && leadN >= 40 && leadN > curN * 1.5) teacherTag = lead;
   }
   checkAlerts(seg);
+  checkQuestion(seg);
   wordsSinceNow += n; wordsSinceNotes += n;
   if (wordsSinceNow >= 170) updateNow();
   if (wordsSinceNotes >= 450) updateNotes(false);
@@ -1544,6 +1588,276 @@ function checkAlerts(seg){
 document.addEventListener("visibilitychange", () => { if (!document.hidden && titleTimer){ clearInterval(titleTimer); titleTimer = 0; document.title = "Intérprete en vivo"; } });
 
 /* =====================================================================
+   Questions and suggested answers: two linked windows (Spanish / meeting language)
+   ===================================================================== */
+const qaCards = [], qaQueue = [];
+let qaSeq = 0, qaActive = 0;
+const QA_PARALLEL = 2;
+/* Without punctuation (Chrome's own recognizer) a question is recognised by how the phrase starts. */
+const Q_START = /^(?:(?:so|and|but|okay|ok|well|now|alright|y|pero|bueno|entonces)[, ]+)?(?:what|why|how|when|where|who|whom|whose|which|could|can|would|will|should|shall|do|does|did|is|are|was|were|have|has|any(?:one|body)?|qu[eé]|por qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|qui[eé]n(?:es)?|cu[aá]l(?:es)?|cu[aá]nto|alguien|podr[ií]as?|puedes?)\b/i;
+const qaOther = lang => lang && lang !== "es" ? lang : partnerLang();
+function looksLikeQuestion(seg){
+  const t = seg.src.trim();
+  if (/[?¿]/.test(t)) return true;
+  return !activeDeepgram && words(t).length >= 3 && Q_START.test(t);
+}
+function myNames(){
+  const me = cfg.participants.find(p => p.isMe);
+  const list = (cfg.myNames || "").split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+  if (me && !/^(yo|me|i)$/i.test(me.name.trim())) list.push(me.name.trim());
+  return [...new Set(list.map(norm).filter(n => n.length >= 2))];
+}
+/** My name was said in this phrase or just before it, by the same person. */
+function mentionsMe(seg){
+  const names = myNames(); if (!names.length) return false;
+  const i = segments.indexOf(seg);
+  const prev = segments.slice(Math.max(0, i - 2), Math.max(0, i)).filter(s => s.speaker.id === seg.speaker.id && seg.startedAt - s.startedAt < 20000);
+  const t = " " + norm([...prev.map(s => s.src), seg.src].join(" ")) + " ";
+  return names.some(n => t.includes(" " + n + " "));
+}
+function checkQuestion(seg){
+  if (cfg.qaMode === "manual" || seg.qa || seg.speaker.isMe) return;
+  if (cfg.classMode && seg.speaker.id === "classmate") return;   // a classmate asking the teacher is not a question for me
+  if (!looksLikeQuestion(seg)) return;
+  if (cfg.qaMode === "name" && !mentionsMe(seg)) return;
+  createQa(seg, false);
+}
+/** "¿Qué respondo?": a suggestion for the last thing someone else said, question or not. */
+function qaAskNow(){
+  const seg = [...segments].reverse().find(s => !s.speaker.isMe && s.src.trim());
+  if (!seg){ showBanner("Todavía nadie ha dicho nada a lo que responder.", "info"); return; }
+  if (seg.qa && seg.qa.el && seg.qa.state !== "none"){
+    if (seg.qa.state !== "working" && seg.qa.state !== "done") qaRetry(seg.qa); else qaJump(seg.qa, "es");
+    return;
+  }
+  if (cfg.win.D.min && cfg.win.E.min){ if (MOBILE) setTab("Q"); else { cfg.win.D.min = false; saveWin(); layoutPanes(); } }
+  createQa(seg, true);
+}
+function createQa(seg, manual){
+  const lang = seg ? seg.speaker.lang : partnerLang();
+  const card = { id: ++qaSeq, at: seg ? seg.startedAt : Date.now(), who: seg ? seg.speaker.name : "", lang, other: qaOther(lang), manual, seg,
+    qSrc: seg ? seg.src : "", qEs: "", qOt: "", aOt: "", aEs: "", lOt: "", lEs: "", tip: "", state: "pending", err: "" };
+  if (seg) seg.qa = card;
+  qaCards.push(card);
+  buildQaCard(card);
+  if (claudeOn()){ qaQueue.push(card); pumpQa(); } else card.state = "noclaude";
+  while (qaCards.length > 60){ const old = qaCards.shift(); removeQaEls(old); }
+  renderQaAll(); renderQaEmpty(); scheduleSave(); schedulePops();
+  if (!manual) try { navigator.vibrate && navigator.vibrate(60); } catch (e){}
+  return card;
+}
+function pumpQa(){
+  // Many questions in a row: answer the newest ones, the older ones can be asked for again.
+  while (qaQueue.length > 3){ const old = qaQueue.shift(); old.state = "skipped"; renderQa(old); }
+  while (qaActive < QA_PARALLEL && qaQueue.length) runQa(qaQueue.shift());
+}
+function qaRetry(card){
+  if (!claudeOn()){ showBanner(cfg.claudeKey ? "Activa Claude para sugerir respuestas." : "Añade tu clave de Claude en Ajustes para sugerir respuestas.", "info"); return; }
+  card.state = "pending"; card.err = ""; card.manual = true; renderQa(card);
+  qaQueue.push(card); pumpQa();
+}
+function qaPrompt(card){
+  const ot = (LANGS[card.other] || LANGS.en).english;
+  const where = cfg.topic ? `a session about ${cfg.topic}` : "a class or a work meeting";
+  let system = `You are a discreet live prompter for a Spanish-speaking person who is attending ${where} held mainly in ${ot}. ` +
+    "When someone asks a question, you suggest what this person could answer out loud, in the first person, as if they were saying it themselves.\n" +
+    "Rules:\n" +
+    "- Answer exactly what was asked, directly, with no introduction.\n" +
+    `- The ${ot} answer must sound natural when spoken: clear sentences and everyday professional vocabulary that a non-native speaker can read aloud with ease.\n` +
+    "- Use the context given (topic, summary, glossary, class notes, what was just said and what the person wrote about themselves), and the session's terminology.\n" +
+    "- Never invent facts about the person (experience, opinions, figures, names). If the answer needs them and they are not in the context, write a natural answer with a short placeholder in square brackets, for example [your example] in " + ot + " and [tu ejemplo] in Spanish.\n" +
+    "- If you are not sure about a fact, say it with natural caution (I think…, as far as I know…).\n" +
+    `- The Spanish lines are faithful translations of the ${ot} lines, in ${targetName("es")}.\n`;
+  if (!card.manual) system += "- If the text is not really a question for the audience (it is rhetorical, or the speaker answers it themselves right away), reply with exactly: NONE\n";
+  system += `\nReply with exactly these five lines, each on a single line, in this order and nothing else:\n` +
+    `A_OT: short answer in ${ot} (1 to 3 sentences)\nA_ES: the same short answer in Spanish\n` +
+    `L_OT: a more complete answer in ${ot} (3 to 6 sentences)\nL_ES: the same complete answer in Spanish\n` +
+    "TIP: one short tip in Spanish for the person (what to add, a nuance, or a follow-up question they could ask), or -";
+  const recent = recentSource(150, 450);
+  let user = "PARTICIPANTS:\n" + cfg.participants.map(p => "- " + describe(p) + (p.isMe ? " (this is the person you help)" : "")).join("\n") + "\n\n";
+  if (cfg.aboutMe) user += "ABOUT THE PERSON (written by them):\n" + cfg.aboutMe.slice(0, 1500) + "\n\n";
+  if (glossary.summary) user += "SESSION SUMMARY:\n" + glossary.summary + "\n\n";
+  const terms = glossary.relevant(card.qSrc + " " + recent, 20);
+  if (terms.length) user += "GLOSSARY:\n" + terms.join("\n") + "\n\n";
+  if (glossary.keep.length) user += "NEVER TRANSLATE: " + glossary.keep.join(", ") + "\n\n";
+  if (notesText) user += "CLASS NOTES SO FAR (Spanish):\n" + notesText.slice(-2500) + "\n\n";
+  user += "WHAT WAS SAID IN THE LAST MINUTES (automatic transcript, it may contain recognition errors):\n" + recent + "\n\n";
+  user += card.manual
+    ? `The person asked for help. It may or may not be a question: suggest what they could say now in reply to this, said by ${card.who || "someone"}:\n${card.qSrc}`
+    : `QUESTION (said by ${card.who}):\n${card.qSrc}`;
+  return { system, user };
+}
+function parseQa(text){
+  const out = {};
+  for (const line of text.split("\n")){
+    const m = line.match(/^\s*[*_#\s]*(A_OT|A_ES|L_OT|L_ES|TIP)[*_\s]*:\s*(.*)$/);
+    if (m) out[m[1]] = m[2].replace(/^\*+|\*+$/g, "").trim();
+  }
+  return out;
+}
+function applyQa(card, p){
+  if (p.A_OT != null) card.aOt = p.A_OT;
+  if (p.A_ES != null) card.aEs = p.A_ES;
+  if (p.L_OT != null) card.lOt = p.L_OT;
+  if (p.L_ES != null) card.lEs = p.L_ES;
+  if (p.TIP != null) card.tip = /^-?$/.test(p.TIP.trim()) ? "" : p.TIP;
+}
+async function runQa(card){
+  qaActive++; card.state = "working"; renderQa(card);
+  const { system, user } = qaPrompt(card);
+  try {
+    const raw = await claudeStream(cfg.expertQuality === "smart" ? SMART_MODEL : FAST_MODEL, system, [{ type: "text", text: user }], 700, 30000, partial => {
+      if (/^\s*NONE/i.test(partial)) return;
+      applyQa(card, parseQa(partial)); renderQa(card);
+    });
+    if (!card.manual && /^\s*NONE\b/i.test(raw) && !/A_OT\s*:/.test(raw)) card.state = "none";
+    else {
+      applyQa(card, parseQa(raw));
+      if (card.aOt){ card.state = "done"; if (cfg.qaSpeak) say(card.aOt, localeFor(card.other), true); }
+      else { card.state = "error"; card.err = "Claude no ha devuelto una respuesta. Pulsa «Generar respuesta» para intentarlo otra vez."; }
+    }
+  } catch (e){
+    card.state = "error"; card.err = claudeMessage(e);
+  }
+  qaActive--;
+  if (card.state === "none") dropQa(card); else renderQa(card);
+  scheduleSave(); schedulePops(); pumpQa();
+}
+/** A rhetorical question: it leaves both windows quietly. */
+function dropQa(card){
+  const i = qaCards.indexOf(card); if (i >= 0) qaCards.splice(i, 1);
+  if (card.seg && card.seg.qa === card) card.seg.qa = null;
+  removeQaEls(card); renderQaAll(); renderQaEmpty();
+}
+function removeQaEls(card){ if (card.el){ card.el.es.remove(); card.el.ot.remove(); } }
+function qaNumber(card){ return qaCards.indexOf(card) + 1; }
+function qaQuestionText(card, side){
+  const seg = card.seg;
+  if (!seg) return (side === "es" ? card.qEs : card.qOt) || card.qSrc;
+  const tr = improvedText(seg) || instantText(seg);
+  if (side === "es") return card.lang === "es" ? seg.src : (tr || "…");
+  return card.lang === "es" ? (tr || "…") : seg.src;
+}
+function buildQaCard(card){
+  card.el = {};
+  for (const side of ["es", "ot"]){
+    const a = el("article", "qa");
+    a.dataset.q = card.id;
+    a.innerHTML = `<div class="qa-head"><span class="qa-num"></span><span class="qa-meta"></span><span class="qa-state"></span></div>
+      <p class="qa-q"></p>
+      <div><span class="qa-lbl"></span><p class="qa-short"></p></div>
+      <details class="qa-more" hidden><summary>Respuesta más completa</summary><p class="qa-long"></p></details>
+      ${side === "es" ? '<p class="qa-tip" hidden></p>' : ""}
+      <div class="qa-actions"><button class="pill small" data-act="say">Escuchar</button><button class="pill small" data-act="copy">Copiar</button><button class="pill small" data-act="retry" hidden>Generar respuesta</button></div>`;
+    a.addEventListener("mouseenter", () => qaHighlight(card, true));
+    a.addEventListener("mouseleave", () => qaHighlight(card, false));
+    a.addEventListener("click", e => { if (!e.target.closest("button,summary,a")) qaJump(card, side); });
+    a.querySelector('[data-act="say"]').onclick = () => {
+      const t = side === "es" ? card.aEs : card.aOt;
+      if (t) say(t, side === "es" ? spanishLocale() : localeFor(card.other), true);
+    };
+    a.querySelector('[data-act="copy"]').onclick = async ev => {
+      const t = side === "es" ? card.aEs : card.aOt; if (!t) return;
+      try { await navigator.clipboard.writeText(t); ev.target.textContent = "Copiado"; setTimeout(() => { ev.target.textContent = "Copiar"; }, 1500); }
+      catch (e){ showBanner("No se pudo copiar. Selecciona el texto y copia con Ctrl+C.", "info"); }
+    };
+    a.querySelector('[data-act="retry"]').onclick = () => qaRetry(card);
+    // Opening the longer answer on one side opens it on the other too.
+    const det = a.querySelector("details");
+    det.addEventListener("toggle", () => { const o = card.el[side === "es" ? "ot" : "es"]; if (o){ const d2 = o.querySelector("details"); if (d2.open !== det.open) d2.open = det.open; } });
+    $(side === "es" ? "feedD" : "feedE").appendChild(a);
+    card.el[side] = a;
+  }
+}
+function qaHighlight(card, on){ if (card.el) for (const s of ["es", "ot"]) card.el[s].classList.toggle("hl", on); }
+/** Click a card: its pair in the other window scrolls into view and lights up. */
+function qaJump(card, fromSide){
+  if (!card.el) return;
+  for (const s of ["es", "ot"]){
+    const a = card.el[s];
+    if (s !== fromSide) a.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    a.classList.add("flash"); setTimeout(() => a.classList.remove("flash"), 1300);
+  }
+}
+function renderQaQuestion(card){
+  if (!card.el) return;
+  card.el.es.querySelector(".qa-q").textContent = qaQuestionText(card, "es");
+  card.el.ot.querySelector(".qa-q").textContent = qaQuestionText(card, "ot");
+  schedulePops();
+}
+function renderQa(card){
+  if (!card.el) return;
+  const fd = $("feedD"), fe = $("feedE"), sd = stick(fd), se = stick(fe);
+  const waiting = { pending: "Preparando la respuesta…", working: "Preparando la respuesta…",
+    noclaude: cfg.claudeKey ? "Claude está en pausa: actívalo para sugerir respuestas." : "Añade tu clave de Claude en Ajustes para sugerir respuestas.",
+    skipped: "No dio tiempo: llegaron varias preguntas seguidas.", error: card.err || "No se pudo preparar la respuesta." }[card.state] || "";
+  for (const side of ["es", "ot"]){
+    const a = card.el[side], es = side === "es";
+    a.querySelector(".qa-num").textContent = "P" + qaNumber(card);
+    a.querySelector(".qa-meta").textContent = clock(card.at) + (card.who ? " · " + card.who : "") + (!es && card.other !== partnerLang() ? " · " + card.other.toUpperCase() : "");
+    a.querySelector(".qa-state").textContent = card.state === "working" ? "preparando…" : card.state === "error" ? "error" : "";
+    a.querySelector(".qa-q").textContent = qaQuestionText(card, side);
+    a.querySelector(".qa-lbl").textContent = card.manual ? "Qué puedes decir" : "Respuesta sugerida";
+    const short = es ? card.aEs : card.aOt, sp = a.querySelector(".qa-short");
+    sp.textContent = "";
+    if (short) sp.textContent = short; else sp.appendChild(el("span", "wait", waiting || "…"));
+    const long = es ? card.lEs : card.lOt;
+    a.querySelector(".qa-more").hidden = !long;
+    a.querySelector(".qa-long").textContent = long || "";
+    if (es){ const tip = a.querySelector(".qa-tip"); tip.hidden = !card.tip; tip.textContent = card.tip ? "Consejo: " + card.tip : ""; }
+    a.querySelector('[data-act="retry"]').hidden = !["error", "skipped", "noclaude"].includes(card.state);
+    a.querySelector('[data-act="say"]').hidden = !short;
+    a.querySelector('[data-act="copy"]').hidden = !short;
+    a.classList.toggle("live", card.state === "working" || card.state === "pending");
+  }
+  if (card === qaCards[qaCards.length - 1]) renderCabinQa(card);
+  if (sd) fd.scrollTop = fd.scrollHeight;
+  if (se) fe.scrollTop = fe.scrollHeight;
+  schedulePops();
+}
+function renderQaAll(){ for (const c of qaCards) renderQa(c); if (!qaCards.length) $("cabinQa").hidden = true; }
+function renderCabinQa(card){
+  $("cabinQa").hidden = false;
+  $("cabinQaQ").textContent = `P${qaNumber(card)} · ${card.who || "Pregunta"}: ${qaQuestionText(card, "es")}`;
+  $("cabinQaA").textContent = card.aOt || "Preparando la respuesta…";
+  $("cabinQaEs").textContent = card.aEs || "";
+}
+function renderQaTitles(){
+  const name = "Preguntas · " + cap(langName(partnerLang()));
+  WIN_NAME.E = name; POP_TITLE.E = name;
+  const h = $("qaOtTitle"); if (h) h.textContent = name;
+}
+function renderQaEmpty(){
+  const has = qaCards.length > 0, other = langName(partnerLang());
+  const d = $("emptyD"), e = $("emptyE"); if (!d || !e) return;
+  d.hidden = e.hidden = has;
+  if (has) return;
+  if (!claudeOn()) d.textContent = cfg.claudeKey ? "Claude está en pausa: actívalo para que sugiera respuestas a las preguntas." : "Para sugerir respuestas hace falta Claude: añade tu clave en Ajustes.";
+  else if (cfg.qaMode === "manual") d.textContent = "Solo sugiero una respuesta cuando pulsas «¿Qué respondo?» (tecla S). Puedes cambiarlo en Ajustes.";
+  else if (cfg.qaMode === "name") d.textContent = myNames().length ? "Cuando alguien te pregunte diciendo tu nombre, aquí verás la pregunta y una respuesta sugerida en español." : "Para avisarte solo cuando te pregunten a ti, escribe en Sesión cómo te llaman.";
+  else d.textContent = `Cuando alguien haga una pregunta, aquí verás la pregunta y una respuesta sugerida en español. Cada una lleva un número (P1, P2…) igual que en la ventana de ${other}: haz clic en una para ver su pareja. «¿Qué respondo?» (tecla S) pide una sugerencia en cualquier momento.`;
+  e.textContent = `Aquí verás las mismas preguntas y respuestas en ${other}, listas para decirlas en voz alta.`;
+}
+function qaSnapshot(){
+  return qaCards.filter(c => c.state === "done").slice(-40).map(c => ({ at: c.at, who: c.who, lang: c.lang, other: c.other, manual: !!c.manual,
+    qSrc: c.qSrc, qEs: qaQuestionText(c, "es"), qOt: qaQuestionText(c, "ot"), aOt: c.aOt, aEs: c.aEs, lOt: c.lOt, lEs: c.lEs, tip: c.tip }));
+}
+function restoreQa(list){
+  for (const o of list || []){
+    if (!o || !o.aOt) continue;
+    const card = { ...o, id: ++qaSeq, seg: null, state: "done", err: "" };
+    if (!LANGS[card.other]) card.other = partnerLang();
+    qaCards.push(card); buildQaCard(card);
+  }
+  renderQaAll(); renderQaEmpty();
+}
+function clearQa(){
+  for (const c of qaCards) removeQaEls(c);
+  qaCards.length = 0; qaQueue.length = 0;
+  $("cabinQa").hidden = true; renderQaEmpty();
+}
+
+/* =====================================================================
    Dialogs
    ===================================================================== */
 const dlg = $("dlg");
@@ -1602,12 +1916,16 @@ function openSession(){
     <h4>Tu glosario</h4>
     <textarea id="sOwn" placeholder="Una línea por término:&#10;revenue = ingresos&#10;board = consejo de administración">${esc(cfg.userGlossary)}</textarea>
     <p class="help">Tus términos tienen prioridad y también ayudan a Deepgram a reconocerlos.</p>
+    <h4>Para sugerir respuestas</h4>
+    <label>Cómo te llaman<input type="text" id="sNames" value="${esc(cfg.myNames)}" placeholder="Tu nombre y cómo te suelen llamar, separados por comas"></label>
+    <label>Sobre ti (opcional)<textarea id="sAbout" placeholder="Tu papel y lo que conviene saber para responder por ti. Por ejemplo: alumno de un máster de finanzas; trabajo como analista de riesgos; en esta reunión represento al equipo de compras.">${esc(cfg.aboutMe)}</textarea></label>
+    <p class="help">Claude lo usa para que las respuestas sugeridas encajen contigo. Se guarda solo en este navegador.</p>
     <label>No traducir nunca<input type="text" id="sKeep" value="${esc(cfg.keepTerms)}" placeholder="Marcas, nombres, siglas… separados por comas"></label>
     <div class="actions"><button class="btn" data-close>Cancelar</button><button class="btn primary" id="sSave">Guardar</button></div>`, body => {
       $("sPick").onclick = () => { if (!claudeOn()){ $("sDoc").textContent = cfg.claudeKey ? "Activa Claude para preparar el glosario." : "Primero añade tu clave de Claude en Ajustes."; return; } $("sFile").click(); };
       $("sFile").onchange = e => { const f = e.target.files[0]; if (f) importDocument(f, $("sTopic").value.trim()); };
       const rm = $("sRemove"); if (rm) rm.onclick = () => { setCfg("docName", ""); setCfg("docBrief", ""); rebuildGlossary(); renderTopic(); $("sDoc").textContent = "Ninguno"; rm.remove(); };
-      $("sSave").onclick = () => { setCfg("topic", $("sTopic").value.trim()); setCfg("userGlossary", $("sOwn").value.trim()); setCfg("keepTerms", $("sKeep").value.trim()); rebuildGlossary(); renderTopic(); closeDialog(); };
+      $("sSave").onclick = () => { setCfg("topic", $("sTopic").value.trim()); setCfg("userGlossary", $("sOwn").value.trim()); setCfg("keepTerms", $("sKeep").value.trim()); setCfg("myNames", $("sNames").value.trim()); setCfg("aboutMe", $("sAbout").value.trim()); rebuildGlossary(); renderTopic(); renderQaEmpty(); closeDialog(); };
     });
 }
 let jszipPromise = null;
@@ -1734,6 +2052,10 @@ function openSettings(){
     <input type="password" id="kCl" value="${esc(cfg.claudeKey)}" placeholder="Clave de Claude (sk-ant-…)" autocomplete="off">
     <label class="row"><input type="checkbox" id="kClUse" ${cfg.useClaude ? "checked" : ""}>Usar Claude (si lo desactivas, la clave se queda guardada)</label>
     <div class="radios">${r("qual", "fast", cfg.expertQuality, "Rápida: llega antes")}${r("qual", "smart", cfg.expertQuality, "Más precisa: entiende mejor frases hechas y jerga, llega un poco más tarde")}</div>
+    <h4>Preguntas y respuestas</h4>
+    <div class="radios">${r("qam", "all", cfg.qaMode, "Sugerir respuesta a todas las preguntas que se hagan")}${r("qam", "name", cfg.qaMode, "Solo cuando digan mi nombre (escríbelo en Sesión)")}${r("qam", "manual", cfg.qaMode, "Solo cuando pulse «¿Qué respondo?» (tecla S)")}</div>
+    <label class="row"><input type="checkbox" id="kQaSpeak" ${cfg.qaSpeak ? "checked" : ""}>Leerme la respuesta sugerida al oído, en el idioma de la reunión</label>
+    <p class="help">Son sugerencias de Claude con la calidad elegida arriba: revísalas antes de decirlas. Solo se consulta a Claude cuando hay una pregunta.</p>
     <h4>Escribir y traducir: DeepL</h4>
     <input type="text" id="kDlUrl" value="${esc(cfg.deeplUrl)}" placeholder="Dirección del servidor DeepL" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
     <input type="password" id="kDlTok" value="${esc(cfg.deeplToken)}" placeholder="Código de acceso del servidor" autocomplete="off">
@@ -1778,7 +2100,7 @@ function openSettings(){
         setCfg("claudeKey", $("kCl").value.trim()); setCfg("useClaude", $("kClUse").checked);
         { let du = $("kDlUrl").value.trim(); if (du && !/^https?:\/\//i.test(du)) du = "https://" + du; if (du !== cfg.deeplUrl || $("kDlTok").value.trim() !== cfg.deeplToken) dlDownUntil = 0;
           setCfg("deeplUrl", du); setCfg("deeplToken", $("kDlTok").value.trim()); setCfg("twMode", val("twmode")); }
-        setCfg("textSize", +val("size")); setCfg("outputMode", +val("out")); setCfg("expertQuality", val("qual"));
+        setCfg("textSize", +val("size")); setCfg("outputMode", +val("out")); setCfg("expertQuality", val("qual")); setCfg("qaMode", val("qam")); setCfg("qaSpeak", $("kQaSpeak").checked);
         setCfg("voiceSource", val("vsrc")); setCfg("rate", +val("rate")); setCfg("voiceMap", Object.fromEntries([...Object.entries(cfg.voiceMap || {}), ...voiceLangs.map(l => [l, $("v_" + l).value])]));
         setCfg("headphones", $("kHead").checked); setCfg("speakMine", $("kMine").checked); setCfg("spanishOut", val("sp"));
         if (cfg.outputMode === 0) try { speechSynthesis.cancel(); } catch (e){}
@@ -1847,6 +2169,7 @@ function openMore(){
   openDialog(`<h3>Más</h3><div class="list">
     <button id="mRecap">¿Qué ha dicho? (último minuto) · tecla Q</button>
     <button id="mNotes">Apuntes y avisos de la clase · tecla A</button>
+    <button id="mQa">¿Qué respondo? (sugerir respuesta) · tecla S</button>
     <button id="mProfiles">Perfiles de sesión</button>
     <button id="mAsk">Preguntar sobre lo hablado</button>
     <button id="mSummary">Resumen y exportar (Word / PDF / texto)</button>
@@ -1858,11 +2181,12 @@ function openMore(){
   </div><div class="actions"><button class="btn" data-close>Cerrar</button></div>`, () => {
     if ($("mInstall")) $("mInstall").onclick = installApp;
     $("mVersion").onclick = openVersion;
+    $("mQa").onclick = () => { closeDialog(); qaAskNow(); };
     $("mRecap").onclick = openRecap; $("mNotes").onclick = openNotes;
     $("mProfiles").onclick = openProfiles; $("mAsk").onclick = openAsk; $("mSummary").onclick = openSummary;
     $("mCopy").onclick = async () => { const t = transcriptText(); if (!t){ closeDialog(); showBanner("Todavía no hay nada transcrito.", "info"); return; } try { await navigator.clipboard.writeText(t); showBanner("Transcripción copiada al portapapeles.", "info"); } catch (e){ download("transcripcion.txt", new Blob([t], { type: "text/plain" })); } closeDialog(); };
     $("mClear").onclick = () => openDialog(`<h3>¿Borrar la transcripción?</h3><p class="help">Se borra lo traducido en esta sesión. Tus perfiles y ajustes no se tocan.</p><div class="actions"><button class="btn" data-close>Cancelar</button><button class="btn primary" id="cYes">Borrar</button></div>`, () => { $("cYes").onclick = () => { clearTranscript(); closeDialog(); }; });
-    $("mHelp").onclick = () => openDialog(`<h3>Atajos y consejos</h3><p class="help"><b>F2</b> empieza o detiene · <b>R</b> repite la última frase · <b>1 a 9</b> eligen quién habla (o corrigen la voz detectada).</p>
+    $("mHelp").onclick = () => openDialog(`<h3>Atajos y consejos</h3><p class="help"><b>F2</b> empieza o detiene · <b>S</b> «¿Qué respondo?» · <b>R</b> repite la última frase · <b>1 a 9</b> eligen quién habla (o corrigen la voz detectada).</p>
       <p class="help"><b>Clases o reuniones online</b> (Teams, Zoom, Meet, YouTube): elige «Audio del PC» y, al compartir, marca «Compartir audio». Si es una pestaña de Chrome, elige esa pestaña; si es una aplicación, elige «Pantalla completa».</p>
       <p class="help"><b>Reuniones online en las que tú también hablas:</b> elige «Ambos» y usa auriculares, para que el micrófono no capte el sonido del PC dos veces.</p>
       <p class="help"><b>Clases presenciales:</b> «Micrófono». Un micrófono de solapa o de mesa conectado al PC mejora mucho lo que se capta.</p>
@@ -1880,13 +2204,13 @@ function openProfiles(){
         const p = list[+b.dataset.i];
         openDialog(`<h3>${esc(p.name)}</h3><p class="help">Tema: ${esc(p.topic || "—")}<br>Documento: ${esc(p.docName || "—")}<br>Participantes: ${esc(p.participants.map(x => x.name).join(", "))}</p>
           <div class="actions"><button class="btn danger" id="pfDel">Eliminar</button><button class="btn" data-close>Cancelar</button><button class="btn primary" id="pfLoad">Cargar</button></div>`, () => {
-            $("pfLoad").onclick = () => { for (const k of ["topic", "docName", "docBrief", "userGlossary", "keepTerms", "participants"]) setCfg(k, p[k]); setCfg("selectedId", p.participants[0].id); speakerMap.clear(); rebuildGlossary(); renderAll(); onParticipantsChanged(); closeDialog(); showBanner("Perfil cargado: " + p.name, "info"); };
+            $("pfLoad").onclick = () => { for (const k of ["topic", "docName", "docBrief", "userGlossary", "keepTerms", "participants"]) setCfg(k, p[k]); for (const k of ["aboutMe", "myNames"]) if (p[k] !== undefined) setCfg(k, p[k]); setCfg("selectedId", p.participants[0].id); speakerMap.clear(); rebuildGlossary(); renderAll(); onParticipantsChanged(); closeDialog(); showBanner("Perfil cargado: " + p.name, "info"); };
             $("pfDel").onclick = () => { setCfg("profiles", cfg.profiles.filter(x => x.name !== p.name)); closeDialog(); };
           });
       });
       $("prSave").onclick = () => {
         const name = $("prName").value.trim() || "Sesión";
-        const snap = { name, topic: cfg.topic, docName: cfg.docName, docBrief: cfg.docBrief, userGlossary: cfg.userGlossary, keepTerms: cfg.keepTerms, participants: cfg.participants };
+        const snap = { name, topic: cfg.topic, docName: cfg.docName, docBrief: cfg.docBrief, userGlossary: cfg.userGlossary, keepTerms: cfg.keepTerms, participants: cfg.participants, aboutMe: cfg.aboutMe, myNames: cfg.myNames };
         setCfg("profiles", [...cfg.profiles.filter(x => x.name !== name), snap]); closeDialog(); showBanner("Perfil guardado: " + name, "info");
       };
     });
@@ -1901,7 +2225,7 @@ function clearTranscript(){
   setTimeout(renderNow, 0);
   segments.length = 0; current = null; draftChunks.length = 0; tailQueue.clear(); expertQueue.length = 0; history.length = 0;
   for (const f of ["feedA", "feedB"]) while ($(f).children.length > 1) $(f).lastChild.remove();
-  $("cabinLine").textContent = "…"; renderEmpty();
+  $("cabinLine").textContent = "…"; clearQa(); renderEmpty();
 }
 /* =====================================================================
    Session autosave and recovery (survives closing or reloading the tab)
@@ -1914,7 +2238,7 @@ function snapshot(){
     partner: s.partner, startedAt: s.startedAt, src: s.src, alert: s.alert || "",
     chunks: s.chunks.map(c => ({ src: c.src, draft: c.draft || null, expert: c.expertDone && c.expert ? c.expert : null, covered: !!c.covered }))
   }));
-  return { savedAt: Date.now(), segs, nowText, notesText, alerts: alerts.slice(-50) };
+  return { savedAt: Date.now(), segs, nowText, notesText, alerts: alerts.slice(-50), qa: qaSnapshot() };
 }
 function saveSession(){
   clearTimeout(saveTimer); saveTimer = 0;
@@ -1936,6 +2260,7 @@ function restoreSession(snap){
     renderSeg(seg);
   }
   nowText = snap.nowText || ""; notesText = snap.notesText || ""; alerts.push(...(snap.alerts || []));
+  restoreQa(snap.qa);
   renderNow(); renderEmpty();
 }
 function offerRecovery(){
@@ -1995,6 +2320,14 @@ function exportBlocks(sum, cols){
   if (sum) for (const line of sum.split("\n")){ const t = line.trim(); if (!t) continue; b.push([t.endsWith(":") && t === t.toUpperCase() ? "heading" : "body", t]); }
   if (alerts.length){ b.push(["heading", "Avisos"]); alerts.forEach(a => b.push(["body", a])); }
   if (notesText) for (const line of ["APUNTES:", ...notesText.split("\n")]){ const t = line.trim(); if (!t) continue; b.push([t.endsWith(":") && t === t.toUpperCase() ? "heading" : "body", t]); }
+  const qaDone = qaCards.filter(c => c.aOt);
+  if (qaDone.length){
+    b.push(["heading", "Preguntas y respuestas sugeridas"]);
+    for (const c of qaDone){
+      b.push(["speaker", `P${qaNumber(c)} · ${clock(c.at)}${c.who ? "  " + c.who : ""}`], ["source", qaQuestionText(c, "ot")], ["body", qaQuestionText(c, "es")],
+        ["body", `Respuesta (${langName(c.other)}): ${c.aOt}`], ["body", `Respuesta (español): ${c.aEs}`]);
+    }
+  }
   b.push(["heading", "Transcripción bilingüe"]);
   if (!cols) for (const r of exportRows()) b.push(["speaker", `${r.time}  ${r.who}`], ["body", r.tr], ["source", r.src]);
   return b;
@@ -2056,7 +2389,7 @@ function exportPdf(sum, cols){
 $("mic").onclick = () => listening ? stopListening() : startListening();
 $("btnSession").onclick = openSession; $("btnSettings").onclick = openSettings; $("btnMore").onclick = openMore;
 $("btnClaude").onclick = toggleClaude; $("btnRepeat").onclick = repeatLast;
-$("btnRecap").onclick = openRecap; $("nowBar").onclick = openNotes;
+$("btnRecap").onclick = openRecap; $("nowBar").onclick = openNotes; $("btnQaAsk").onclick = qaAskNow;
 document.querySelectorAll("button[data-out]").forEach(b => b.onclick = () => {
   setCfg("outputMode", +b.dataset.out);
   if (cfg.outputMode === 0) try { speechSynthesis.cancel(); } catch (e){}
@@ -2073,6 +2406,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "r" || e.key === "R") repeatLast();
   else if (e.key === "q" || e.key === "Q") openRecap();
   else if (e.key === "a" || e.key === "A") openNotes();
+  else if (e.key === "s" || e.key === "S") qaAskNow();
   else if (/^[1-9]$/.test(e.key)){ const p = cfg.participants[+e.key - 1]; if (p) selectSpeaker(p); }
 });
 window.addEventListener("beforeunload", () => { flushSession(); if (listening) stopListening(); });
@@ -2082,8 +2416,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 /* =====================================================================
    Windows: resize, minimize, reopen
    ===================================================================== */
-const WIN = ["A", "B", "C"];
-const WIN_NAME = { A: "Simultánea", B: "Mejorada", C: "Escribir y traducir" };
+const WIN = ["A", "B", "C", "D", "E"];
+const WIN_NAME = { A: "Simultánea", B: "Mejorada", C: "Escribir y traducir", D: "Preguntas · Español", E: "Preguntas · Inglés" };
 const saveWin = () => keep("win", cfg.win);
 const narrow = () => { try { return window.matchMedia("(max-width: 860px)").matches; } catch (e){ return false; } };
 /** Stacked or side by side. "auto" picks whichever gives every window the most natural shape for the current size. */
@@ -2144,12 +2478,13 @@ function layoutPanes(){
 /* Mobile: one window at a time, chosen from the tabs above the bottom bar */
 function renderTabs(){
   if (!MOBILE) return;
-  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(!cfg.win[b.dataset.tab].min)));
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(!cfg.win[b.dataset.tab === "Q" ? "D" : b.dataset.tab].min)));
   document.querySelector('[data-tab="A"]').hidden = !("Translator" in self) && claudeOn();
 }
 function setTab(k){
-  if (!WIN.includes(k)) k = "B";
-  for (const w of WIN) cfg.win[w].min = w !== k;
+  if (k !== "Q" && !["A", "B", "C"].includes(k)) k = "B";
+  const open = k === "Q" ? ["D", "E"] : [k];   // "Preguntas" shows both windows, one above the other
+  for (const w of WIN) cfg.win[w].min = !open.includes(w);
   setCfg("mtab", k); saveWin(); layoutPanes(); renderTabs();
 }
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -2319,8 +2654,17 @@ $("twDict").onclick = dictToggle;
 
 /* ---- Pop-out windows: send a pane to its own browser window (another monitor) ---- */
 const pops = {}; let popTimer = 0;
-const POP_TITLE = { A: "Simultánea", B: "Mejorada", C: "Traducción" };
+const POP_TITLE = { A: "Simultánea", B: "Mejorada", C: "Traducción", D: "Preguntas · Español", E: "Preguntas · Inglés" };
 function popLines(k){
+  if (k === "D" || k === "E"){
+    const es = k === "D", out = [];
+    for (const c of qaCards.slice(-4)){
+      out.push({ who: `P${qaNumber(c)} · ${c.who || "pregunta"}`, text: qaQuestionText(c, es ? "es" : "ot") });
+      const a = es ? c.aEs : c.aOt;
+      if (a) out.push({ who: `P${qaNumber(c)} · respuesta`, text: a, hi: true });
+    }
+    return out;
+  }
   if (k === "C") return tw.out ? [{ who: "", text: tw.out }] : [];
   return segments.filter(s => s.src.trim()).slice(-8).map(s => ({ who: s.speaker.name, text: k === "A" ? instantText(s) : (improvedText(s) || instantText(s)) })).filter(l => l.text);
 }
@@ -2332,7 +2676,7 @@ function syncPops(){
     const doc = p.w.document, lines = popLines(k);
     box.textContent = "";
     lines.forEach((l, i) => {
-      const para = doc.createElement("p"); if (i === lines.length - 1) para.className = "last";
+      const para = doc.createElement("p"); if (l.hi || i === lines.length - 1) para.className = "last";
       if (l.who){ const s = doc.createElement("small"); s.textContent = l.who; para.appendChild(s); }
       para.appendChild(doc.createTextNode(l.text)); box.appendChild(para);
     });
@@ -2373,6 +2717,7 @@ if (MOBILE){
   if (cfg.source !== "mic") setCfg("source", "mic");
   let t = cfg.mtab || (claudeOn() ? "B" : "A");
   if (t === "A" && !("Translator" in self) && claudeOn()) t = "B";
+  if (t === "Q" && !claudeOn()) t = "B";
   setTab(t);
 }
 renderAll();
