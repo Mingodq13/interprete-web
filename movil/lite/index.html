@@ -937,9 +937,16 @@ async function prepareTranslators(){
     }
     pumpDraft();
   }
-}const draftChunks = []; const tailQueue = new Set(); let draftBusy = false;
+}const draftChunks = []; const tailQueue = new Set(); let draftBusy = false, draftActive = 0;
 async function pumpDraft(){
   if (draftBusy) return;
+  if (LITE && (liteDeepl() || (!("Translator" in self) && claudeOn() && !expertBlocked))){   // borrador: DeepL si está configurado; si no, Claude Haiku. Hasta 3 a la vez
+    while (draftChunks.length && draftActive < 3){
+      const [s, c] = draftChunks.shift(); draftActive++;
+      liteDraft(s, c).finally(() => { draftActive--; renderSeg(s); renderLatency(); maybeSpeak(s); pumpDraft(); });
+    }
+    tailQueue.clear(); return;
+  }
   if (trState !== "ready"){
     if (trState === "preparing") return;
     while (draftChunks.length){ const [s, c] = draftChunks.shift(); c.draft = c.src; renderSeg(s); maybeSpeak(s); }
@@ -1034,6 +1041,38 @@ const IDIOM_RULES =
   "'estar en las nubes' = 'to have your head in the clouds'; 'no tener pelos en la lengua' = 'not to mince words'; 'me quedé de piedra' = 'I was stunned'; 'flipar' = 'to be blown away'; 'estar hecho polvo' = 'to be wiped out'; " +
   "'Ich verstehe nur Bahnhof' = 'no entiendo ni una palabra'; 'Das ist mir Wurst' = 'me da igual'; 'poser un lapin' = 'dejar plantado'; 'in bocca al lupo' = 'mucha suerte'; 'não vou com a tua cara' = 'no me cae bien'.";
 const FRAGMENT_RULES = " Because the speech arrives in fragments, an expression can be cut in two. When words heard right after the fragment are given, use them to recognise an expression that is cut at the end of this fragment and render the meaning of the WHOLE expression in this fragment. If a fragment contains only the leftover words of an expression whose meaning was already rendered in the previous output, reply with exactly: ...";
+/** DeepL está configurado (servidor y código en Ajustes) y no ha fallado hace poco. */
+const liteDeepl = () => !!cfg.deeplUrl && Date.now() > dlDownUntil;
+/** Borrador de Simultánea para móviles sin el traductor de Chrome: DeepL si está configurado y, si falla o no hay, Claude Haiku. */
+async function liteDraft(seg, c){
+  const fromLang = seg.speaker.lang, toLang = segTo(seg);
+  if (fromLang === toLang){ c.draft = c.src; return; }
+  if (liteDeepl() && DL_SOURCE[fromLang] && dlTarget(toLang)){
+    try {
+      const d = await deeplTranslate(c.src, fromLang, toLang);
+      c.draft = d || c.src; addLat(instantLat, performance.now() - c.createdAt); return;
+    } catch (e){
+      dlDownUntil = Date.now() + 30000;   // 30 s sin insistir a DeepL
+      if (Date.now() - lastNetBanner > 15000){ lastNetBanner = Date.now(); showBanner(deeplMessage(e) + (claudeOn() ? " Uso Claude Haiku para la simultánea mientras tanto." : ""), "net"); }
+    }
+  }
+  if (!claudeOn() || expertBlocked){ c.draft = c.src; return; }
+  const idx = seg.chunks.indexOf(c), prev = idx > 0 ? seg.chunks[idx - 1].src : "";
+  let system = "You are a live interpreter producing a FAST first draft. Translate the new fragment from " + (LANGS[fromLang] || LANGS.en).english + " into " + targetName(toLang) +
+    ". The fragment comes from speech recognition and may be cut in the middle of a sentence: translate only what is there, never complete it. Keep names and brands. Reply with the translation only, no quotes or notes.";
+  if (glossary.keep.length) system += " Never translate these names or brands: " + glossary.keep.join(", ") + ".";
+  const terms = glossary.relevant(c.src, 12);
+  let user = (terms.length ? "Glossary:\n" + terms.join("\n") + "\n\n" : "") + (prev ? "Previous fragment (context only): " + prev + "\n\n" : "") + "Fragment:\n" + c.src;
+  try {
+    const out = cleanOut(await claude(FAST_MODEL, system, [{ type: "text", text: user }], 200, 8000));
+    c.draft = out || c.src; addLat(instantLat, performance.now() - c.createdAt);
+  } catch (e){
+    c.draft = c.src;
+    const why = claudeBlock(e);
+    if (why && !expertBlocked){ expertBlocked = why; renderClaudeToggle(); showBanner(claudeMessage(e), "net"); }
+    else if (Date.now() - lastNetBanner > 15000){ lastNetBanner = Date.now(); showBanner(claudeMessage(e), "net"); }
+  }
+}
 const expertQueue = []; let expertActive = 0; const EXPERT_PARALLEL = 2;
 function pumpExpert(){
   // Stay live: if Claude falls behind, older fragments keep their instant version.
@@ -2081,12 +2120,12 @@ function openSettings(){
     <div class="radios">${r("qam", "all", cfg.qaMode, "Sugerir respuesta a todas las preguntas que se hagan")}${r("qam", "name", cfg.qaMode, "Solo cuando digan mi nombre (escríbelo en Sesión)")}${r("qam", "manual", cfg.qaMode, "Solo cuando pulse «¿Qué respondo?» (tecla S)")}</div>
     <label class="row"><input type="checkbox" id="kQaSpeak" ${cfg.qaSpeak ? "checked" : ""}>Leerme la respuesta sugerida al oído, en el idioma de la reunión</label>
     <p class="help">Son sugerencias de Claude con la calidad elegida arriba: revísalas antes de decirlas. Solo se consulta a Claude cuando hay una pregunta.</p>
-    <h4>Escribir y traducir: DeepL</h4>
+    </div>
+    <h4>${LITE ? "Simultánea rápida: DeepL" : "Escribir y traducir: DeepL"}</h4>
     <input type="text" id="kDlUrl" value="${esc(cfg.deeplUrl)}" placeholder="Dirección del servidor DeepL" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
     <input type="password" id="kDlTok" value="${esc(cfg.deeplToken)}" placeholder="Código de acceso del servidor" autocomplete="off">
-    <div class="radios">${r("twmode", "deepl", cfg.twMode, "Solo DeepL: rápido y no gasta Claude")}${r("twmode", "both", cfg.twMode, "DeepL primero y después Claude lo mejora")}</div>
+    <div class="radios" ${LITE ? 'style="display:none"' : ""}>${r("twmode", "deepl", cfg.twMode, "Solo DeepL: rápido y no gasta Claude")}${r("twmode", "both", cfg.twMode, "DeepL primero y después Claude lo mejora")}</div>
     <p class="help">Déjalo vacío para seguir usando el traductor de Chrome y Claude. Las claves de DeepL y de Claude se guardan solo en este navegador de este dispositivo; la de DeepL va en tu servidor, no aquí.</p>
-    </div>
     <button class="btn" id="kKeys" type="button">Probar claves</button><p class="help" id="keysOut"></p>
     <h4>Pantalla</h4>
     <p class="help">Las ventanas se minimizan, se reabren y se redimensionan desde la pantalla principal (botón – de cada ventana, divisores y barra inferior).</p>
@@ -2505,8 +2544,7 @@ function layoutPanes(){
 function renderTabs(){
   if (!MOBILE) return;
   if (LITE){
-    const noTr = !("Translator" in self) && claudeOn();   // sin traductor del navegador, la simultánea solo enseñaría el original
-    document.querySelectorAll("[data-tab]").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.tab === cfg.mtab)); b.hidden = noTr && b.dataset.tab !== "B"; });
+    document.querySelectorAll("[data-tab]").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.tab === cfg.mtab)); b.hidden = false; });
     return;
   }
   document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(!cfg.win[b.dataset.tab === "Q" ? "D" : b.dataset.tab].min)));
@@ -2755,9 +2793,8 @@ if (MOBILE){
   if (cfg.source !== "mic") setCfg("source", "mic");
   let t = cfg.mtab || (claudeOn() ? "B" : "A");
   if (LITE){
-    t = cfg.mtab || "B";
-    if (!["A", "B", "AB"].includes(t)) t = "B";
-    if ((t === "A" || t === "AB") && !("Translator" in self) && claudeOn()) t = "B";
+    t = cfg.mtab || "AB";
+    if (!["A", "B", "AB"].includes(t)) t = "AB";
   } else {
     if (t === "A" && !("Translator" in self) && claudeOn()) t = "B";
     if (t === "Q" && !claudeOn()) t = "B";
